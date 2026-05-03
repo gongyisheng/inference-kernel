@@ -29,7 +29,9 @@ def discover_extensions() -> list[CUDAExtension]:
         category = kernel_dir.parent.name
         name = kernel_dir.name
         sources = sorted(
-            str(p) for p in csrc_dir.iterdir() if p.suffix in {".cu", ".cpp", ".cc"}
+            p.relative_to(ROOT).as_posix()
+            for p in csrc_dir.iterdir()
+            if p.suffix in {".cu", ".cpp", ".cc"}
         )
         if not sources:
             continue
