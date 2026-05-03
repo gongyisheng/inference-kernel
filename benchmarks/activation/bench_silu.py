@@ -7,8 +7,14 @@ from __future__ import annotations
 import argparse
 
 import torch
+import torch._dynamo
 
 from benchmarks._harness import run_bench
+
+# torch.compile caches per (shape, dtype) signature. Default cache size is 8;
+# we sweep 4 shapes x 3 dtypes = 12 combos, which would exceed the limit and
+# silently fall back to eager. Bump it so all combos stay compiled.
+torch._dynamo.config.cache_size_limit = 64
 
 KERNEL = "silu"
 SHAPES: list[tuple[int, ...]] = [
@@ -25,7 +31,9 @@ def _backends() -> dict:
     backends = {}
 
     from inference_kernel.kernels.activation.silu.torch_impl import silu as silu_torch
-    backends["torch"] = silu_torch
+    # Eager torch is the test oracle; for benchmarking it's not a fair baseline.
+    # Use torch.compile so we measure what an actual user would deploy.
+    backends["torch_compile"] = torch.compile(silu_torch, mode="reduce-overhead")
 
     try:
         from inference_kernel.kernels.activation.silu.triton_impl import silu as silu_triton
