@@ -63,6 +63,55 @@ def time_callable(fn: Callable[[], torch.Tensor], device: torch.device) -> float
     return _time_gpu(fn) if device.type == "cuda" else _time_cpu(fn)
 
 
+def _numel(shape: tuple[int, ...]) -> int:
+    n = 1
+    for d in shape:
+        n *= d
+    return n
+
+
+def plot_results(rows: list[BenchRow], output_png: Path) -> None:
+    """Plot ms vs. numel, one subplot per dtype, one line per backend.
+
+    Skipped (no-op) if rows is empty.
+    """
+    if not rows:
+        return
+    import matplotlib.pyplot as plt  # lazy import — keeps non-plotting paths fast
+
+    dtypes = sorted({r.dtype for r in rows})
+    backends = sorted({r.backend for r in rows})
+    kernel = rows[0].kernel
+    device = rows[0].device
+
+    fig, axes = plt.subplots(1, len(dtypes), figsize=(5 * len(dtypes), 4), squeeze=False)
+    for i, dtype in enumerate(dtypes):
+        ax = axes[0, i]
+        for backend in backends:
+            series = sorted(
+                (r for r in rows if r.dtype == dtype and r.backend == backend),
+                key=lambda r: _numel(r.shape),
+            )
+            if not series:
+                continue
+            xs = [_numel(r.shape) for r in series]
+            ys = [r.ms for r in series]
+            ax.plot(xs, ys, marker="o", label=backend)
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlabel("numel")
+        ax.set_ylabel("ms (median)")
+        ax.set_title(f"dtype={dtype}")
+        ax.grid(True, which="both", alpha=0.3)
+        ax.legend()
+
+    fig.suptitle(f"{kernel} — backend comparison ({device})")
+    fig.tight_layout()
+    output_png.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_png, dpi=120)
+    plt.close(fig)
+
+
 def run_bench(
     *,
     kernel: str,
@@ -73,8 +122,9 @@ def run_bench(
     device: torch.device,
     flops_per_element: float | None = None,
     output_csv: Path | None = None,
+    output_png: Path | None = None,
 ) -> list[BenchRow]:
-    """Sweep (shape, dtype, backend) and write a CSV.
+    """Sweep (shape, dtype, backend) and write a CSV + PNG plot.
 
     Args:
         kernel: kernel name (e.g. "silu") — written to the CSV.
@@ -84,10 +134,12 @@ def run_bench(
         make_input: builds an input tensor for a given (shape, dtype, device).
         flops_per_element: if provided, used to compute TFLOPS; else None.
         output_csv: defaults to results/<kernel>.csv.
+        output_png: defaults to results/<kernel>.png.
     """
     rows: list[BenchRow] = []
     sha = _git_sha()
     output_csv = output_csv or (RESULTS_DIR / f"{kernel}.csv")
+    output_png = output_png or (RESULTS_DIR / f"{kernel}.png")
     output_csv.parent.mkdir(parents=True, exist_ok=True)
 
     for shape in shapes:
@@ -102,10 +154,7 @@ def run_bench(
                 ms = time_callable(lambda f=fn, x=x: f(x), device)
                 tflops = None
                 if flops_per_element is not None:
-                    n = 1
-                    for d in shape:
-                        n *= d
-                    tflops = (flops_per_element * n) / (ms * 1e-3) / 1e12
+                    tflops = (flops_per_element * _numel(shape)) / (ms * 1e-3) / 1e12
                 row = BenchRow(
                     kernel=kernel,
                     backend=backend_name,
@@ -119,7 +168,7 @@ def run_bench(
                 rows.append(row)
                 tflops_str = f"{tflops:.2f}" if tflops is not None else ""
                 print(
-                    f"  {kernel:10s} {backend_name:8s} shape={shape!s:20s} "
+                    f"  {kernel:10s} {backend_name:14s} shape={shape!s:20s} "
                     f"dtype={row.dtype:8s} ms={ms:8.4f} tflops={tflops_str}"
                 )
 
@@ -134,4 +183,8 @@ def run_bench(
                  "" if r.tflops is None else f"{r.tflops:.6f}", r.git_sha]
             )
     print(f"wrote {len(rows)} rows to {output_csv}")
+
+    plot_results(rows, output_png)
+    print(f"wrote plot to {output_png}")
+
     return rows

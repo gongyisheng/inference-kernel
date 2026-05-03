@@ -224,4 +224,5 @@ docs/superpowers/
 # inference-kernel
 benchmarks/results/*.csv
 benchmarks/results/*.json
+benchmarks/results/*.png
 .uv/
