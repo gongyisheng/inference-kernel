@@ -2,12 +2,12 @@
 name = "inference-kernel"
 version = "0.0.1"
 description = "GPU inference kernels with torch, triton, and CUDA implementations"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 readme = "README.md"
 dependencies = [
-    "torch>=2.4",
-    "triton>=3.0",
-    "numpy",
+    "torch>=2.11",
+    "triton>=3.6",
+    "numpy>=2",
 ]
 
 [project.optional-dependencies]
@@ -22,7 +22,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["setuptools>=68", "wheel", "torch>=2.4"]
+requires = ["setuptools>=75", "wheel", "torch>=2.11"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
@@ -33,7 +33,7 @@ where = ["src"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
