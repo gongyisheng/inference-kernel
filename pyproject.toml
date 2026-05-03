@@ -18,6 +18,7 @@ dev = [
     "ipython",
     "matplotlib",
     "pre-commit",
+    "ninja",
 ]
 
 [build-system]
