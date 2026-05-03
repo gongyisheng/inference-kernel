@@ -1,0 +1,51 @@
+[project]
+name = "inference-kernel"
+version = "0.0.1"
+description = "GPU inference kernels with torch, triton, and CUDA implementations"
+requires-python = ">=3.10"
+readme = "README.md"
+dependencies = [
+    "torch>=2.4",
+    "triton>=3.0",
+    "numpy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-xdist",
+    "ruff",
+    "ipython",
+    "matplotlib",
+    "pre-commit",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel", "torch>=2.4"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "cuda: requires a CUDA device",
+    "triton: requires triton (and a CUDA device)",
+    "slow: long-running tests",
+]

@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Superpowers / local design notes
+docs/superpowers/
+.remember/
+
+# inference-kernel
+benchmarks/results/*.csv
+benchmarks/results/*.json
+.uv/
