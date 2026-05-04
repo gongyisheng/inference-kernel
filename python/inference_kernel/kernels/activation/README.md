@@ -1,9 +1,10 @@
 # Activation kernels
 
 Element-wise activations used in transformer FFN blocks. Each backend lives
-in a single file at this directory level — `torch_impl.py`, `triton_impl.py`,
-`cuda_impl.py` — and exposes one function per activation. CUDA sources live
-in `csrc/activation/` and build into a single per-category extension.
+in a single file at this directory level — `eager_impl.py`, `torch_impl.py`,
+`triton_impl.py`, `cuda_impl.py` — and exposes one function per activation.
+CUDA sources live in `csrc/activation/` and build into a single per-category
+extension.
 
 ## Kernels
 
@@ -11,7 +12,8 @@ in `csrc/activation/` and build into a single per-category extension.
 
 `y = x * sigmoid(x)`.
 
-- `torch_impl.silu(x)` — eager reference, correctness oracle.
+- `eager_impl.silu(x)` — eager reference, correctness oracle.
+- `torch_impl.silu(x)` — `F.silu` (fused PyTorch op).
 - `triton_impl.silu(x)` — Triton block kernel.
 - `cuda_impl.silu(x)` — custom CUDA kernel.
 

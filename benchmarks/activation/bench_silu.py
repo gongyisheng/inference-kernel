@@ -30,10 +30,13 @@ FLOPS_PER_ELEMENT = 2.0  # silu = mul + sigmoid; counted as ~2 ops/elem
 def _backends() -> dict:
     backends = {}
 
+    from inference_kernel.kernels.activation.eager_impl import silu as silu_eager
     from inference_kernel.kernels.activation.torch_impl import silu as silu_torch
-    # Eager torch is the test oracle; for benchmarking it's not a fair baseline.
-    # Use torch.compile so we measure what an actual user would deploy.
-    backends["torch_compile"] = torch.compile(silu_torch, mode="reduce-overhead")
+    # Eager is the test oracle; for benchmarking it's not a fair baseline,
+    # so we ship two torch baselines: F.silu (what most users actually call)
+    # and torch.compile of the eager form (what a perf-tuned user would deploy).
+    backends["torch"] = silu_torch
+    backends["torch_compile"] = torch.compile(silu_eager, mode="reduce-overhead")
 
     try:
         from inference_kernel.kernels.activation.triton_impl import silu as silu_triton

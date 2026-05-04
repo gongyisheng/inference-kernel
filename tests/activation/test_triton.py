@@ -1,10 +1,10 @@
-"""Triton silu correctness vs torch reference."""
+"""Triton silu correctness vs torch eager reference."""
 from __future__ import annotations
 
 import pytest
 import torch
 
-from inference_kernel.kernels.activation.torch_impl import silu as silu_torch
+from inference_kernel.kernels.activation.eager_impl import silu as silu_ref
 from inference_kernel.kernels.activation.triton_impl import silu as silu_triton
 
 from tests.conftest import assert_close_for_dtype
@@ -12,13 +12,13 @@ from tests.conftest import assert_close_for_dtype
 
 @pytest.mark.triton
 @pytest.mark.parametrize("shape", [(1024,), (32, 1024), (4, 16, 1024), (1023,)], ids=str)
-def test_silu_triton_matches_torch(
+def test_silu_triton_matches_ref(
     shape: tuple[int, ...], dtype: torch.dtype, device: torch.device
 ) -> None:
     torch.manual_seed(0)
     x = torch.randn(shape, dtype=dtype, device=device)
     got = silu_triton(x)
-    expected = silu_torch(x)
+    expected = silu_ref(x)
     assert_close_for_dtype(got, expected, dtype)
 
 

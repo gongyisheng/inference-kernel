@@ -5,10 +5,11 @@ GPU inference kernels with `torch`, `triton`, and `cuda` backends side-by-side.
 Python wrappers and native sources are split at the language level, one
 backend file per category:
 
-- `python/inference_kernel/kernels/<category>/` — three Python backends
-  side-by-side: `torch_impl.py` (eager reference, correctness oracle),
-  `triton_impl.py`, and `cuda_impl.py` (thin wrapper over the built `_ext`).
-  Each backend file holds every kernel function for the category.
+- `python/inference_kernel/kernels/<category>/` — Python backends
+  side-by-side: `eager_impl.py` (slow correctness oracle), `torch_impl.py`
+  (fast torch using fused PyTorch ops), `triton_impl.py`, and `cuda_impl.py`
+  (thin wrapper over the built `_ext`). Each backend file holds every
+  kernel function for the category.
 - `csrc/<category>/` — the C++/CUDA sources (`.cu`, `binding.cpp`); one
   compiled extension per category, registering all the category's kernels.
 
@@ -27,7 +28,8 @@ For an AOT install with prebuilt extensions: `uv pip install .` (or `pip install
 ## Use
 
 ```python
-from inference_kernel.kernels.activation.torch_impl  import silu as silu_torch
+from inference_kernel.kernels.activation.eager_impl  import silu as silu_eager   # slow oracle
+from inference_kernel.kernels.activation.torch_impl  import silu as silu_torch   # F.silu
 from inference_kernel.kernels.activation.triton_impl import silu as silu_triton
 from inference_kernel.kernels.activation.cuda_impl   import silu as silu_cuda
 ```
@@ -53,8 +55,8 @@ CSV output goes to `benchmarks/results/`.
 ## Adding a kernel
 
 1. `python/inference_kernel/kernels/<category>/`: add a function to each
-   of `torch_impl.py`, `triton_impl.py`, `cuda_impl.py`, and document the
-   new kernel in the category's `README.md`.
+   of `eager_impl.py`, `torch_impl.py`, `triton_impl.py`, `cuda_impl.py`,
+   and document the new kernel in the category's `README.md`.
 2. `csrc/<category>/`: drop a `<name>.cu` and add the function to the
    shared `binding.cpp` so it joins the per-category extension.
 3. `tests/<category>/test_{torch,triton,cuda}.py`: add tests alongside

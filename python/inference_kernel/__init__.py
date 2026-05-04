@@ -1,9 +1,10 @@
 """Inference kernels with torch / triton / cuda backends.
 
-Backends are imported explicitly per category; each backend file holds
-every kernel function in that category:
+Each category exposes multiple backend files holding every kernel function
+in that category:
 
-    from inference_kernel.kernels.activation.torch_impl  import silu
+    from inference_kernel.kernels.activation.eager_impl  import silu  # slow oracle
+    from inference_kernel.kernels.activation.torch_impl  import silu  # F.silu
     from inference_kernel.kernels.activation.triton_impl import silu
     from inference_kernel.kernels.activation.cuda_impl   import silu
 """

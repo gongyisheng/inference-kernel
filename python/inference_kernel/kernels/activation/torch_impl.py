@@ -1,13 +1,13 @@
-"""Torch eager references for activation kernels.
+"""Fast torch backend for activation kernels.
 
-These are the correctness oracles for the triton and cuda backends.
-Keep them the simplest possible correct implementations; do not optimize.
+Uses fused PyTorch ops where available. Correctness is verified against
+`eager_impl.py`.
 """
 from __future__ import annotations
 
 import torch
+import torch.nn.functional as F
 
 
 def silu(x: torch.Tensor) -> torch.Tensor:
-    """SiLU: y = x * sigmoid(x). Element-wise; preserves shape and dtype."""
-    return x * torch.sigmoid(x)
+    return F.silu(x)
