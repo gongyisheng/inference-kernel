@@ -226,3 +226,4 @@ benchmarks/results/*.csv
 benchmarks/results/*.json
 benchmarks/results/*.png
 .uv/
+.vscode/
