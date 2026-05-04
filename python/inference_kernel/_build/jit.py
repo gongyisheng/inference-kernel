@@ -1,0 +1,98 @@
+"""CUDA extension loader: AOT first, JIT fallback.
+
+Each kernel's cuda_impl.py calls load_kernel(package=..., sources=...) at
+module import time.
+
+If the package was installed via `pip install .` (or `pip install -e .`),
+setup.py built and placed an AOT extension named
+`inference_kernel.kernels.<category>.<name>._ext`; we import it directly.
+
+Otherwise we JIT-compile sources from the kernel's csrc/<category>/<name>/
+directory at the repo root, using torch.utils.cpp_extension.load. The
+compiled object is cached under ~/.cache/torch_extensions/, keyed by source
+contents, so subsequent imports are fast.
+
+The csrc directory is derived from the package name by convention:
+    inference_kernel.kernels.<category>.<name>  →  <repo_root>/csrc/<category>/<name>/
+"""
+from __future__ import annotations
+
+import functools
+import importlib
+from pathlib import Path
+from types import ModuleType
+
+_PACKAGE_PREFIX = "inference_kernel.kernels."
+
+
+@functools.lru_cache(maxsize=1)
+def _repo_root() -> Path:
+    """Find the repo root by walking up to the nearest pyproject.toml."""
+    p = Path(__file__).resolve()
+    for parent in (p, *p.parents):
+        if (parent / "pyproject.toml").exists():
+            return parent
+    raise RuntimeError(
+        "could not locate repo root (no pyproject.toml found above "
+        f"{Path(__file__)})"
+    )
+
+
+def _csrc_dir_for(package: str) -> Path:
+    """Map inference_kernel.kernels.<cat>.<name> → <repo_root>/csrc/<cat>/<name>."""
+    if not package.startswith(_PACKAGE_PREFIX):
+        raise ValueError(
+            f"package must start with {_PACKAGE_PREFIX!r}, got {package!r}"
+        )
+    rest = package[len(_PACKAGE_PREFIX):].split(".")
+    if len(rest) != 2:
+        raise ValueError(
+            f"expected package=inference_kernel.kernels.<category>.<name>, got {package!r}"
+        )
+    category, name = rest
+    return _repo_root() / "csrc" / category / name
+
+
+def load_kernel(
+    *,
+    package: str,
+    sources: list[str],
+    extra_cuda_cflags: list[str] | None = None,
+    extra_cflags: list[str] | None = None,
+) -> ModuleType:
+    """Return the compiled extension module for a kernel.
+
+    Args:
+        package: dotted name of the kernel package, e.g.
+            "inference_kernel.kernels.activation.silu". The AOT extension
+            is expected at f"{package}._ext"; the JIT fallback compiles
+            from <repo_root>/csrc/<category>/<name>/.
+        sources: filenames inside the csrc dir, e.g. ["silu.cu", "binding.cpp"].
+        extra_cuda_cflags: extra nvcc flags for JIT mode.
+        extra_cflags: extra C++ flags for JIT mode.
+    """
+    aot_name = f"{package}._ext"
+    try:
+        return importlib.import_module(aot_name)
+    except ModuleNotFoundError:
+        pass
+
+    # JIT fallback. Lazy torch import keeps the AOT path fast.
+    from torch.utils.cpp_extension import load
+
+    csrc_dir = _csrc_dir_for(package)
+    if not csrc_dir.is_dir():
+        raise FileNotFoundError(
+            f"csrc directory not found at {csrc_dir}; cannot JIT-compile {package}. "
+            "If installed from a wheel, the AOT extension should have been built — "
+            "check that setup.py was run during install."
+        )
+    full_sources = [str(csrc_dir / s) for s in sources]
+    jit_name = package.replace(".", "_") + "_ext"
+    return load(
+        name=jit_name,
+        sources=full_sources,
+        extra_cuda_cflags=extra_cuda_cflags or ["-O3", "--use_fast_math"],
+        extra_cflags=extra_cflags or ["-O3", "-std=c++17"],
+        verbose=False,
+    )

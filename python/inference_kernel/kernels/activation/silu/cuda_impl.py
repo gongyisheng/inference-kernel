@@ -1,22 +1,18 @@
 """CUDA backend for SiLU.
 
 Loads the compiled extension at module import time via the shared loader
-in inference_kernel._build.jit (AOT first, JIT fallback).
+in inference_kernel._build.jit (AOT first, JIT fallback). The loader
+finds the matching csrc/ directory by convention from the package name.
 """
 from __future__ import annotations
-
-from pathlib import Path
 
 import torch
 
 from inference_kernel._build.jit import load_kernel
 from inference_kernel._common.utils import assert_contiguous
 
-_CSRC_DIR = Path(__file__).parent / "csrc"
-
 _ext = load_kernel(
     package="inference_kernel.kernels.activation.silu",
-    csrc_dir=_CSRC_DIR,
     sources=["silu.cu", "binding.cpp"],
 )
 

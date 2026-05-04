@@ -2,12 +2,13 @@
 
 GPU inference kernels with `torch`, `triton`, and `cuda` backends side-by-side.
 
-Each kernel lives under `src/inference_kernel/kernels/<category>/<name>/`
-with three implementations:
+Python wrappers and native sources are split at the language level:
 
-- `torch_impl.py` — eager reference (correctness oracle for the others)
-- `triton_impl.py` — Triton block kernel
-- `cuda_impl.py` — custom CUDA kernel (+ `csrc/`)
+- `python/inference_kernel/kernels/<category>/<name>/` — three Python
+  backends side-by-side: `torch_impl.py` (eager reference, correctness
+  oracle), `triton_impl.py`, and `cuda_impl.py` (thin wrapper over the
+  built `_ext`).
+- `csrc/<category>/<name>/` — the C++/CUDA sources (`.cu`, `binding.cpp`).
 
 Backends are imported explicitly; there is no auto-dispatch.
 
@@ -49,11 +50,14 @@ CSV output goes to `benchmarks/results/`.
 
 ## Adding a kernel
 
-1. `src/inference_kernel/kernels/<category>/<name>/`:
+1. `python/inference_kernel/kernels/<category>/<name>/`:
    - `torch_impl.py` (reference) + `triton_impl.py` + `cuda_impl.py`
-   - `csrc/<name>.cu` + `csrc/binding.cpp`
    - `README.md` describing the math / shape contract
-2. `tests/<category>/<name>/`: `test_torch.py`, `test_triton.py`, `test_cuda.py`
-3. `benchmarks/<category>/bench_<name>.py`
+2. `csrc/<category>/<name>/`:
+   - `<name>.cu` + `binding.cpp`
+3. `tests/<category>/<name>/`: `test_torch.py`, `test_triton.py`, `test_cuda.py`
+4. `benchmarks/<category>/bench_<name>.py`
 
-`setup.py` auto-discovers `csrc/` folders; no central registry to update.
+`setup.py` auto-discovers `csrc/<category>/<name>/` folders and the JIT
+loader maps the package name to the matching csrc dir by convention. No
+central registry to update.
