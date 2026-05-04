@@ -1,7 +1,7 @@
-"""Torch eager reference for SiLU (a.k.a. swish).
+"""Torch eager references for activation kernels.
 
-This is the correctness oracle for the triton and cuda backends.
-Keep it the simplest possible correct implementation; do not optimize.
+These are the correctness oracles for the triton and cuda backends.
+Keep them the simplest possible correct implementations; do not optimize.
 """
 from __future__ import annotations
 

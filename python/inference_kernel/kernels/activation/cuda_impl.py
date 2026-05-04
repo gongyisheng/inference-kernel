@@ -1,8 +1,8 @@
-"""CUDA backend for SiLU.
+"""CUDA backends for activation kernels.
 
-Loads the compiled extension at module import time via the shared loader
-in inference_kernel._build.jit (AOT first, JIT fallback). The loader
-finds the matching csrc/ directory by convention from the package name.
+One compiled extension per category, loaded once at module import time
+via the shared loader in inference_kernel._build.jit (AOT first, JIT
+fallback). All activation entry points dispatch into _ext.
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from inference_kernel._build.jit import load_kernel
 from inference_kernel._common.utils import assert_contiguous
 
 _ext = load_kernel(
-    package="inference_kernel.kernels.activation.silu",
+    package="inference_kernel.kernels.activation",
     sources=["silu.cu", "binding.cpp"],
 )
 

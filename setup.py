@@ -4,9 +4,9 @@ All other packaging metadata lives in pyproject.toml. This file exists
 solely because torch.utils.cpp_extension.CUDAExtension requires
 distutils-style setup() to compile .cu sources AOT.
 
-Each kernel drops its sources at csrc/<category>/<name>/. We auto-discover
-those and register one extension per kernel. The extension module name
-is `inference_kernel.kernels.<category>.<name>._ext`, and the kernel's
+Each category drops its sources at csrc/<category>/. We auto-discover
+those and register one extension per category. The extension module name
+is `inference_kernel.kernels.<category>._ext`, and the category's
 cuda_impl.py imports it (with a JIT fallback if not built).
 """
 from __future__ import annotations
@@ -21,21 +21,20 @@ CSRC_ROOT = ROOT / "csrc"
 
 
 def discover_extensions() -> list[CUDAExtension]:
-    """Find every csrc/<category>/<name>/ and build it as an extension."""
+    """Find every csrc/<category>/ and build it as one extension."""
     extensions: list[CUDAExtension] = []
-    for kernel_dir in sorted(CSRC_ROOT.glob("*/*")):
-        if not kernel_dir.is_dir():
+    for category_dir in sorted(CSRC_ROOT.glob("*")):
+        if not category_dir.is_dir():
             continue
-        category = kernel_dir.parent.name
-        name = kernel_dir.name
+        category = category_dir.name
         sources = sorted(
             p.relative_to(ROOT).as_posix()
-            for p in kernel_dir.iterdir()
+            for p in category_dir.iterdir()
             if p.suffix in {".cu", ".cpp", ".cc"}
         )
         if not sources:
             continue
-        ext_name = f"inference_kernel.kernels.{category}.{name}._ext"
+        ext_name = f"inference_kernel.kernels.{category}._ext"
         extensions.append(
             CUDAExtension(
                 name=ext_name,

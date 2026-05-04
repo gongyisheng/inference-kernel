@@ -1,8 +1,8 @@
-"""Triton implementation of SiLU.
+"""Triton implementations of activation kernels.
 
-One-dimensional element-wise kernel: each program handles BLOCK_SIZE
-elements of the flattened input. Computes silu in fp32 to keep
-half/bf16 precision predictable, then casts back.
+Each entry point ships with its own @triton.jit kernel; element-wise
+activations use a 1-D flat grid. Compute happens in fp32 for predictable
+half/bf16 precision, then casts back on store.
 """
 from __future__ import annotations
 

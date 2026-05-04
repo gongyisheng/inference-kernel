@@ -5,7 +5,7 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from inference_kernel.kernels.activation.silu.torch_impl import silu
+from inference_kernel.kernels.activation.torch_impl import silu
 
 from tests.conftest import assert_close_for_dtype
 

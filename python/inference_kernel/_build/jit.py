@@ -1,19 +1,19 @@
 """CUDA extension loader: AOT first, JIT fallback.
 
-Each kernel's cuda_impl.py calls load_kernel(package=..., sources=...) at
+Each category's cuda_impl.py calls load_kernel(package=..., sources=...) at
 module import time.
 
 If the package was installed via `pip install .` (or `pip install -e .`),
 setup.py built and placed an AOT extension named
-`inference_kernel.kernels.<category>.<name>._ext`; we import it directly.
+`inference_kernel.kernels.<category>._ext`; we import it directly.
 
-Otherwise we JIT-compile sources from the kernel's csrc/<category>/<name>/
+Otherwise we JIT-compile sources from the category's csrc/<category>/
 directory at the repo root, using torch.utils.cpp_extension.load. The
 compiled object is cached under ~/.cache/torch_extensions/, keyed by source
 contents, so subsequent imports are fast.
 
 The csrc directory is derived from the package name by convention:
-    inference_kernel.kernels.<category>.<name>  →  <repo_root>/csrc/<category>/<name>/
+    inference_kernel.kernels.<category>  →  <repo_root>/csrc/<category>/
 """
 from __future__ import annotations
 
@@ -39,18 +39,18 @@ def _repo_root() -> Path:
 
 
 def _csrc_dir_for(package: str) -> Path:
-    """Map inference_kernel.kernels.<cat>.<name> → <repo_root>/csrc/<cat>/<name>."""
+    """Map inference_kernel.kernels.<cat> → <repo_root>/csrc/<cat>."""
     if not package.startswith(_PACKAGE_PREFIX):
         raise ValueError(
             f"package must start with {_PACKAGE_PREFIX!r}, got {package!r}"
         )
     rest = package[len(_PACKAGE_PREFIX):].split(".")
-    if len(rest) != 2:
+    if len(rest) != 1:
         raise ValueError(
-            f"expected package=inference_kernel.kernels.<category>.<name>, got {package!r}"
+            f"expected package=inference_kernel.kernels.<category>, got {package!r}"
         )
-    category, name = rest
-    return _repo_root() / "csrc" / category / name
+    (category,) = rest
+    return _repo_root() / "csrc" / category
 
 
 def load_kernel(
@@ -63,10 +63,10 @@ def load_kernel(
     """Return the compiled extension module for a kernel.
 
     Args:
-        package: dotted name of the kernel package, e.g.
-            "inference_kernel.kernels.activation.silu". The AOT extension
+        package: dotted name of the category package, e.g.
+            "inference_kernel.kernels.activation". The AOT extension
             is expected at f"{package}._ext"; the JIT fallback compiles
-            from <repo_root>/csrc/<category>/<name>/.
+            from <repo_root>/csrc/<category>/.
         sources: filenames inside the csrc dir, e.g. ["silu.cu", "binding.cpp"].
         extra_cuda_cflags: extra nvcc flags for JIT mode.
         extra_cflags: extra C++ flags for JIT mode.

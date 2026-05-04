@@ -2,13 +2,15 @@
 
 GPU inference kernels with `torch`, `triton`, and `cuda` backends side-by-side.
 
-Python wrappers and native sources are split at the language level:
+Python wrappers and native sources are split at the language level, one
+backend file per category:
 
-- `python/inference_kernel/kernels/<category>/<name>/` — three Python
-  backends side-by-side: `torch_impl.py` (eager reference, correctness
-  oracle), `triton_impl.py`, and `cuda_impl.py` (thin wrapper over the
-  built `_ext`).
-- `csrc/<category>/<name>/` — the C++/CUDA sources (`.cu`, `binding.cpp`).
+- `python/inference_kernel/kernels/<category>/` — three Python backends
+  side-by-side: `torch_impl.py` (eager reference, correctness oracle),
+  `triton_impl.py`, and `cuda_impl.py` (thin wrapper over the built `_ext`).
+  Each backend file holds every kernel function for the category.
+- `csrc/<category>/` — the C++/CUDA sources (`.cu`, `binding.cpp`); one
+  compiled extension per category, registering all the category's kernels.
 
 Backends are imported explicitly; there is no auto-dispatch.
 
@@ -25,9 +27,9 @@ For an AOT install with prebuilt extensions: `uv pip install .` (or `pip install
 ## Use
 
 ```python
-from inference_kernel.kernels.activation.silu.torch_impl  import silu as silu_torch
-from inference_kernel.kernels.activation.silu.triton_impl import silu as silu_triton
-from inference_kernel.kernels.activation.silu.cuda_impl   import silu as silu_cuda
+from inference_kernel.kernels.activation.torch_impl  import silu as silu_torch
+from inference_kernel.kernels.activation.triton_impl import silu as silu_triton
+from inference_kernel.kernels.activation.cuda_impl   import silu as silu_cuda
 ```
 
 ## Test
@@ -50,14 +52,15 @@ CSV output goes to `benchmarks/results/`.
 
 ## Adding a kernel
 
-1. `python/inference_kernel/kernels/<category>/<name>/`:
-   - `torch_impl.py` (reference) + `triton_impl.py` + `cuda_impl.py`
-   - `README.md` describing the math / shape contract
-2. `csrc/<category>/<name>/`:
-   - `<name>.cu` + `binding.cpp`
-3. `tests/<category>/<name>/`: `test_torch.py`, `test_triton.py`, `test_cuda.py`
-4. `benchmarks/<category>/bench_<name>.py`
+1. `python/inference_kernel/kernels/<category>/`: add a function to each
+   of `torch_impl.py`, `triton_impl.py`, `cuda_impl.py`, and document the
+   new kernel in the category's `README.md`.
+2. `csrc/<category>/`: drop a `<name>.cu` and add the function to the
+   shared `binding.cpp` so it joins the per-category extension.
+3. `tests/<category>/test_{torch,triton,cuda}.py`: add tests alongside
+   the existing kernels in each backend file.
+4. `benchmarks/<category>/bench_<name>.py`: one benchmark per kernel.
 
-`setup.py` auto-discovers `csrc/<category>/<name>/` folders and the JIT
-loader maps the package name to the matching csrc dir by convention. No
-central registry to update.
+`setup.py` auto-discovers `csrc/<category>/` folders and the JIT loader
+maps the package name to the matching csrc dir by convention. No central
+registry to update.
