@@ -1,8 +1,9 @@
 #include <torch/extension.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <cuda_bf16.h>
 
-template <typename scalar_t>
+template <typename scalar_t, int MAX_CHUNK>
 __global__ void rmsnorm_kernel(
     const scalar_t* __restrict__ x,
     const scalar_t* __restrict__ weight,
@@ -37,12 +38,23 @@ __global__ void rmsnorm_kernel(
 
             // vectorized main loop
             for (int64_t i = tid; i < N8; i += n_thread) {
-                float4 raw = x4[i];
-                const scalar_t* h = reinterpret_cast<const scalar_t*>(&raw);
-                #pragma unroll
-                for (int k = 0; k < 8; k++) {
-                    const float v = static_cast<float>(h[k]);
-                    sum_sq += v * v;
+                const float4 raw = x4[i];
+                if constexpr (std::is_same_v<scalar_t, at::Half>) {
+                    // fp16
+                    const __half2* h2 = reinterpret_cast<const __half2*>(&raw);
+                    #pragma unroll
+                    for (int k = 0; k < 4; k++) {
+                        const float2 v = __half22float2(h2[k]);
+                        sum_sq += v.x * v.x + v.y * v.y;
+                    }
+                } else {
+                    // bf16
+                    const __nv_bfloat162* h2 = reinterpret_cast<const __nv_bfloat162*>(&raw);
+                    #pragma unroll
+                    for (int k = 0; k < 4; k++) {
+                        const float2 v = __bfloat1622float2(h2[k]);
+                        sum_sq += v.x * v.x + v.y * v.y;
+                    }
                 }
             }
         }
