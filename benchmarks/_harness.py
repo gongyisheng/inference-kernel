@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import csv
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 import torch
 
@@ -70,8 +70,13 @@ def _numel(shape: tuple[int, ...]) -> int:
     return n
 
 
-def plot_results(rows: list[BenchRow], output_png: Path) -> None:
-    """Plot ms vs. numel, one subplot per dtype, one line per backend.
+def plot_results(
+    rows: list[BenchRow],
+    output_png: Path,
+    x_axis: Callable[[tuple[int, ...]], int] = _numel,
+    x_label: str = "numel",
+) -> None:
+    """Plot ms vs. x_axis(shape), one subplot per dtype, one line per backend.
 
     Skipped (no-op) if rows is empty.
     """
@@ -90,16 +95,16 @@ def plot_results(rows: list[BenchRow], output_png: Path) -> None:
         for backend in backends:
             series = sorted(
                 (r for r in rows if r.dtype == dtype and r.backend == backend),
-                key=lambda r: _numel(r.shape),
+                key=lambda r: x_axis(r.shape),
             )
             if not series:
                 continue
-            xs = [_numel(r.shape) for r in series]
+            xs = [x_axis(r.shape) for r in series]
             ys = [r.ms for r in series]
             ax.plot(xs, ys, marker="o", label=backend)
         ax.set_xscale("log")
         ax.set_yscale("log")
-        ax.set_xlabel("numel")
+        ax.set_xlabel(x_label)
         ax.set_ylabel("ms (median)")
         ax.set_title(f"dtype={dtype}")
         ax.grid(True, which="both", alpha=0.3)
@@ -123,6 +128,8 @@ def run_bench(
     flops_per_element: float | None = None,
     output_csv: Path | None = None,
     output_png: Path | None = None,
+    x_axis: Callable[[tuple[int, ...]], int] = _numel,
+    x_label: str = "numel",
 ) -> list[BenchRow]:
     """Sweep (shape, dtype, backend) and write a CSV + PNG plot.
 
@@ -196,7 +203,7 @@ def run_bench(
             )
     print(f"wrote {len(rows)} rows to {output_csv}")
 
-    plot_results(rows, output_png)
+    plot_results(rows, output_png, x_axis=x_axis, x_label=x_label)
     print(f"wrote plot to {output_png}")
 
     return rows

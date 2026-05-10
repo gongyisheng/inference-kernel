@@ -1,12 +1,6 @@
 """Benchmark rmsnorm across torch / triton backends.
 
 Run:  uv run python -m benchmarks.norm.bench_rmsnorm --device cuda:0
-
-The harness times callables of the form fn(x), but rmsnorm needs
-(x, weight). We cache one weight tensor per (last_dim, dtype, device)
-and wrap each backend with a closure that injects it. The cache lookup
-is a dict access (~ns) and runs outside the timed kernel call, so it
-does not pollute the measurement.
 """
 from __future__ import annotations
 
@@ -21,10 +15,20 @@ torch._dynamo.config.cache_size_limit = 64
 
 KERNEL = "rmsnorm"
 SHAPES: list[tuple[int, ...]] = [
-    (1024, 4096),         # small prefill batch, llama-3 hidden
-    (4096, 4096),         # larger 2D
-    (16, 2048, 4096),     # typical batched inference activation
-    (8, 8, 8, 16384),     # high-rank, large hidden — exercises BLOCK_SIZE=16384
+    (1024, 8),
+    (1024, 16),
+    (1024, 32),
+    (1024, 64),
+    (1024, 128),
+    (1024, 256),
+    (1024, 512),
+    (1024, 1024),
+    (1024, 2048),
+    (1024, 4096),
+    (1024, 8192),
+    (1024, 16384),
+    (1024, 32768),
+    (1024, 65536),
 ]
 DTYPES = [torch.float32, torch.float16, torch.bfloat16]
 # RMSNorm per element: x*x (1) + reduction add (1) + rstd*x (1) + *w (1) ≈ 4-5 FLOPs.
@@ -107,6 +111,8 @@ def main() -> None:
         dtypes=DTYPES,
         device=device,
         flops_per_element=FLOPS_PER_ELEMENT,
+        x_axis=lambda s: s[-1],
+        x_label="hidden_dim",
     )
 
 
