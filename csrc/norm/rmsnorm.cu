@@ -3,7 +3,7 @@
 #include <cuda_runtime.h>
 #include <cuda_bf16.h>
 
-template <typename scalar_t, int MAX_CHUNK>
+template <typename scalar_t>
 __global__ void rmsnorm_kernel(
     const scalar_t* __restrict__ x,
     const scalar_t* __restrict__ weight,
