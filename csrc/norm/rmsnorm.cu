@@ -65,7 +65,7 @@ __global__ void rmsnorm_kernel(
         }
     }
 
-    __shared__ float sdata[256];
+    extern __shared__ float sdata[];
     sdata[tid] = sum_sq;
     __syncthreads();
 
@@ -171,7 +171,13 @@ torch::Tensor rmsnorm_forward(
             "[rmsnorm] N * dtype_size = ", bytes_per_row, " is not 16-byte aligned; falling back to scalar kernel. ",
             "For peak performance, use N divisible by 4 (fp32) or 8 (bf16/fp16)");
     }
-    const int threads = 256;
+    const int vec_size = (bytes_per_row % 16 == 0) ? (16 / x.element_size()) : 1;
+    const int64_t work_units = N / vec_size;
+    int threads = 32;
+    while (threads < work_units && threads < 1024) {
+        threads *= 2;
+    }
+    const size_t smem_bytes = threads * sizeof(float);
 
     dim3 grid(M);
     dim3 block(threads);
@@ -179,7 +185,7 @@ torch::Tensor rmsnorm_forward(
     AT_DISPATCH_FLOATING_TYPES_AND2(
         at::ScalarType::Half, at::ScalarType::BFloat16,
         x.scalar_type(), "rmsnorm_forward", [&] {
-            rmsnorm_kernel<scalar_t><<<grid, block>>>(
+            rmsnorm_kernel<scalar_t><<<grid, block, smem_bytes>>>(
                 x.data_ptr<scalar_t>(),
                 weight.data_ptr<scalar_t>(),
                 y.data_ptr<scalar_t>(),
