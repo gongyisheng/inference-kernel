@@ -142,15 +142,27 @@ def run_bench(
     output_png = output_png or (RESULTS_DIR / f"{kernel}.png")
     output_csv.parent.mkdir(parents=True, exist_ok=True)
 
+    if device.type == "cuda":
+        torch.cuda.set_device(device)
+
     for shape in shapes:
         for dtype in dtypes:
             x = make_input(shape, dtype, device)
+            if x.device != device:
+                raise RuntimeError(
+                    f"make_input returned tensor on {x.device}, expected {device}"
+                )
             for backend_name, fn in backends.items():
                 try:
-                    fn(x)  # warmup + availability check
+                    y = fn(x)  # warmup + availability check
                 except (ImportError, RuntimeError, ValueError) as e:
                     print(f"  [skip] {backend_name} on {shape} {dtype}: {e}")
                     continue
+                if isinstance(y, torch.Tensor) and y.device != device:
+                    raise RuntimeError(
+                        f"backend {backend_name!r} produced output on {y.device}, "
+                        f"expected {device}"
+                    )
                 ms = time_callable(lambda f=fn, x=x: f(x), device)
                 tflops = None
                 if flops_per_element is not None:
