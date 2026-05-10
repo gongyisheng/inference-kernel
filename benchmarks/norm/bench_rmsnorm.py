@@ -71,6 +71,19 @@ def _backends() -> dict:
     except ImportError as e:
         print(f"  [skip] cuda import failed: {e}")
 
+    try:
+        from flashinfer.norm import rmsnorm as rmsnorm_fi
+
+        # flashinfer.rmsnorm only accepts 2D (N, D) or 3D (B, H, D); flatten higher ranks.
+        def rmsnorm_flashinfer(x: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
+            if x.dim() <= 3:
+                return rmsnorm_fi(x, w)
+            return rmsnorm_fi(x.reshape(-1, x.shape[-1]), w).reshape(x.shape)
+
+        backends["flashinfer"] = _bind_weight(rmsnorm_flashinfer)
+    except ImportError as e:
+        print(f"  [skip] flashinfer import failed: {e}")
+
     return backends
 
 
