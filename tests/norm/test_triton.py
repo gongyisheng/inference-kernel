@@ -1,5 +1,4 @@
 """Triton rmsnorm correctness vs torch eager reference."""
-from __future__ import annotations
 
 import pytest
 import torch

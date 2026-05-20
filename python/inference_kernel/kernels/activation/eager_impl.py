@@ -4,7 +4,6 @@ These are the correctness oracles for every other backend (including the
 faster torch impl in `torch_impl.py`). Keep them the simplest possible
 correct implementations; do not optimize.
 """
-from __future__ import annotations
 
 import torch
 

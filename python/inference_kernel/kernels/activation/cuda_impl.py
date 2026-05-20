@@ -4,7 +4,6 @@ One compiled extension per category, loaded once at module import time
 via the shared loader in inference_kernel._build.jit (AOT first, JIT
 fallback). All activation entry points dispatch into _ext.
 """
-from __future__ import annotations
 
 import torch
 

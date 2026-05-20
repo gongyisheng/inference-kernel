@@ -1,5 +1,4 @@
 """CUDA silu correctness vs torch eager reference (also smoke-tests the JIT loader)."""
-from __future__ import annotations
 
 import pytest
 import torch

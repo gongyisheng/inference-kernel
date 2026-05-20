@@ -8,7 +8,6 @@ combination and writes a CSV row per measurement.
 Timing prefers triton.testing.do_bench (handles warmup + CUDA events)
 and falls back to torch.utils.benchmark.Timer for CPU paths.
 """
-from __future__ import annotations
 
 import csv
 import subprocess

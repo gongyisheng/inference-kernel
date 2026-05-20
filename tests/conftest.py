@@ -1,5 +1,4 @@
 """Shared pytest fixtures for inference_kernel tests."""
-from __future__ import annotations
 
 import pytest
 import torch

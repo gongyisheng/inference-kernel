@@ -2,7 +2,6 @@
 
 Currently exposes minimal helpers; expand as kernels reveal common needs.
 """
-from __future__ import annotations
 
 import torch
 
@@ -16,6 +15,16 @@ def assert_same_device(*tensors: torch.Tensor) -> torch.device:
         if t.device != device:
             raise ValueError(f"device mismatch: {device} vs {t.device}")
     return device
+
+
+def assert_same_dtype(*tensors: torch.Tensor) -> None:
+    if not tensors:
+        raise ValueError("assert_same_dtype requires at least one tensor")
+    dtype = tensors[0].dtype
+    for t in tensors[1:]:
+        if t.dtype != dtype:
+            raise ValueError(f"dtype mismatch: {dtype} vs {t.dtype}")
+    return dtype
 
 
 def assert_contiguous(*tensors: torch.Tensor) -> None:

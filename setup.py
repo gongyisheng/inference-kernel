@@ -9,7 +9,6 @@ those and register one extension per category. The extension module name
 is `inference_kernel.kernels.<category>._ext`, and the category's
 cuda_impl.py imports it (with a JIT fallback if not built).
 """
-from __future__ import annotations
 
 from pathlib import Path
 

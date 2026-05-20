@@ -15,7 +15,6 @@ contents, so subsequent imports are fast.
 The csrc directory is derived from the package name by convention:
     inference_kernel.kernels.<category>  →  <repo_root>/csrc/<category>/
 """
-from __future__ import annotations
 
 import functools
 import importlib

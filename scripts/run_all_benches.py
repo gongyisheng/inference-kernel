@@ -2,7 +2,6 @@
 
 Each is invoked as a module so it can import benchmarks._harness etc.
 """
-from __future__ import annotations
 
 import argparse
 import subprocess

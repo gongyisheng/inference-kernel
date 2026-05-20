@@ -3,7 +3,6 @@
 Uses fused PyTorch ops where available. Correctness is verified against
 `eager_impl.py`.
 """
-from __future__ import annotations
 
 import torch
 import torch.nn.functional as F

@@ -2,7 +2,6 @@
 
 Run:  uv run python -m benchmarks.activation.bench_silu --device cuda:0
 """
-from __future__ import annotations
 
 import argparse
 
