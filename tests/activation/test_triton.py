@@ -2,11 +2,10 @@
 
 import pytest
 import torch
-
 from inference_kernel.kernels.activation.eager_impl import silu as silu_ref
 from inference_kernel.kernels.activation.triton_impl import silu as silu_triton
 
-from tests.conftest import assert_close_for_dtype
+from tests.conftest import assert_close_for_silu
 
 
 @pytest.mark.triton
@@ -18,7 +17,7 @@ def test_silu_triton_matches_ref(
     x = torch.randn(shape, dtype=dtype, device=device)
     got = silu_triton(x)
     expected = silu_ref(x)
-    assert_close_for_dtype(got, expected, dtype)
+    assert_close_for_silu(got, expected, dtype)
 
 
 @pytest.mark.triton

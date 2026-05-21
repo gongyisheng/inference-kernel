@@ -5,7 +5,7 @@ import torch
 from inference_kernel.kernels.norm.eager_impl import rmsnorm as rmsnorm_ref
 from inference_kernel.kernels.norm.triton_impl import rmsnorm as rmsnorm_triton
 
-from tests.conftest import assert_close_for_dtype
+from tests.conftest import assert_close_for_rmsnorm
 
 
 @pytest.mark.triton
@@ -18,7 +18,7 @@ def test_rmsnorm_triton_matches_ref(
     weight = torch.randn(shape[-1], dtype=dtype, device=device)
     got = rmsnorm_triton(x, weight)
     expected = rmsnorm_ref(x, weight)
-    assert_close_for_dtype(got, expected, dtype)
+    assert_close_for_rmsnorm(got, expected, dtype)
 
 
 @pytest.mark.triton

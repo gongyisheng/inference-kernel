@@ -2,10 +2,9 @@
 
 import pytest
 import torch
-
 from inference_kernel.kernels.activation.eager_impl import silu as silu_ref
 
-from tests.conftest import assert_close_for_dtype
+from tests.conftest import assert_close_for_silu
 
 
 @pytest.mark.cuda
@@ -19,7 +18,7 @@ def test_silu_cuda_matches_ref(
     x = torch.randn(shape, dtype=dtype, device=device)
     got = silu_cuda(x)
     expected = silu_ref(x)
-    assert_close_for_dtype(got, expected, dtype)
+    assert_close_for_silu(got, expected, dtype)
 
 
 @pytest.mark.cuda

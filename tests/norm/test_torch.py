@@ -2,11 +2,10 @@
 
 import pytest
 import torch
-
-from inference_kernel.kernels.norm.torch_impl import rmsnorm as rmsnorm_torch
 from inference_kernel.kernels.norm.eager_impl import rmsnorm as rmsnorm_ref
+from inference_kernel.kernels.norm.torch_impl import rmsnorm as rmsnorm_torch
 
-from tests.conftest import assert_close_for_dtype
+from tests.conftest import assert_close_for_rmsnorm
 
 
 @pytest.mark.parametrize("shape", [(8, 16), (32, 64), (4, 16, 128), (2, 3, 1023)], ids=str)
@@ -16,7 +15,7 @@ def test_rmsnorm_torch_matches_ref(shape: tuple[int, ...], dtype: torch.dtype) -
     weight = torch.randn(shape[-1], dtype=dtype)
     got = rmsnorm_torch(x, weight)
     expected = rmsnorm_ref(x, weight)
-    assert_close_for_dtype(got, expected, dtype)
+    assert_close_for_rmsnorm(got, expected, dtype)
 
 
 def test_rmsnorm_torch_preserves_shape_and_dtype() -> None:

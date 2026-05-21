@@ -44,10 +44,14 @@ def _skip_if_marker(request: pytest.FixtureRequest) -> None:
             pytest.skip("triton not installed")
 
 
-def assert_close_for_dtype(actual: torch.Tensor, expected: torch.Tensor, dtype: torch.dtype) -> None:
-    """allclose with tolerances picked per dtype.
+def assert_close_common(actual: torch.Tensor, expected: torch.Tensor, dtype: torch.dtype) -> None:
+    """allclose with tight tolerances picked per dtype.
 
-    fp32: tight (default). fp16: loose. bf16: looser still (3-bit mantissa less than fp16).
+    The default budget for kernels with little compounded floating-point error:
+    per-element ops (e.g. silu) and reduction-style kernels whose error is
+    softened by rsqrt (e.g. rmsnorm). fp32: tight (default). fp16: loose.
+    bf16: looser still (3-bit mantissa less than fp16). Kernels with K-scaling
+    accumulation error (e.g. GEMM) should use `assert_close_for_gemm` instead.
     """
     if dtype == torch.float32:
         rtol, atol = 1e-5, 1e-6
@@ -57,4 +61,28 @@ def assert_close_for_dtype(actual: torch.Tensor, expected: torch.Tensor, dtype: 
         rtol, atol = 1e-2, 1e-2
     else:
         rtol, atol = 1e-5, 1e-6
+    torch.testing.assert_close(actual, expected, rtol=rtol, atol=atol)
+
+
+# Category-specific aliases. Promote to standalone functions if any one
+# kernel category ever needs different tolerances.
+assert_close_for_rmsnorm = assert_close_common
+assert_close_for_silu = assert_close_common
+
+
+def assert_close_for_gemm(actual: torch.Tensor, expected: torch.Tensor, dtype: torch.dtype) -> None:
+    """allclose with looser tolerances tuned for GEMM accumulation error.
+
+    GEMM sums K products, so reordering differences scale with K. Compared
+    to the reduction-style helper above, fp32 needs ~10× looser, fp16 ~10× looser,
+    bf16 ~2× looser to absorb the cuBLAS vs. naive-order accumulation gap.
+    """
+    if dtype == torch.float32:
+        rtol, atol = 1e-4, 1e-4
+    elif dtype == torch.float16:
+        rtol, atol = 1e-2, 1e-2
+    elif dtype == torch.bfloat16:
+        rtol, atol = 2e-2, 2e-2
+    else:
+        rtol, atol = 1e-4, 1e-4
     torch.testing.assert_close(actual, expected, rtol=rtol, atol=atol)

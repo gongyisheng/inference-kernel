@@ -225,5 +225,6 @@ docs/superpowers/
 benchmarks/results/*.csv
 benchmarks/results/*.json
 benchmarks/results/*.png
+profile/reports/
 .uv/
 .vscode/
