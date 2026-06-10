@@ -31,3 +31,9 @@ def assert_contiguous(*tensors: torch.Tensor) -> None:
     for t in tensors:
         if not t.is_contiguous():
             raise ValueError("tensor must be contiguous")
+
+
+def assert_is_cuda(*tensors: torch.Tensor) -> None:
+    for t in tensors:
+        if not t.is_cuda:
+            raise RuntimeError("tensor must be cuda tensor")

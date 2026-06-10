@@ -8,17 +8,21 @@ fallback). All activation entry points dispatch into _ext.
 import torch
 
 from inference_kernel._build.jit import load_kernel
-from inference_kernel._common.utils import assert_contiguous
+from inference_kernel._common.utils import assert_contiguous, assert_is_cuda
 
 _ext = load_kernel(
     package="inference_kernel.kernels.activation",
-    sources=["silu.cu", "binding.cpp"],
+    sources=["silu.cu", "relu.cu", "binding.cpp"],
 )
 
 
+def relu(x: torch.Tensor) -> torch.Tensor:
+    assert_is_cuda(x)
+    assert_contiguous(x)
+    return _ext.relu_forward(x)
+
+
 def silu(x: torch.Tensor) -> torch.Tensor:
-    """SiLU via custom CUDA kernel. Requires CUDA + contiguous input."""
-    if not x.is_cuda:
-        raise ValueError("cuda silu requires a CUDA tensor")
+    assert_is_cuda(x)
     assert_contiguous(x)
     return _ext.silu_forward(x)

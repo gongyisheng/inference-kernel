@@ -68,6 +68,7 @@ def assert_close_common(actual: torch.Tensor, expected: torch.Tensor, dtype: tor
 # kernel category ever needs different tolerances.
 assert_close_for_rmsnorm = assert_close_common
 assert_close_for_silu = assert_close_common
+assert_close_for_relu = assert_close_common
 
 
 def assert_close_for_gemm(actual: torch.Tensor, expected: torch.Tensor, dtype: torch.dtype) -> None:
