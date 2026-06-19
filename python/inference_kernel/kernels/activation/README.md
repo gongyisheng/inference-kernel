@@ -1,10 +1,11 @@
 # Activation kernels
 
-Element-wise activations used in transformer FFN blocks. Each backend lives
-in a single file at this directory level — `eager_impl.py`, `torch_impl.py`,
-`triton_impl.py`, `cuda_impl.py` — and exposes one function per activation.
-CUDA sources live in `csrc/activation/` and build into a single per-category
-extension.
+Element-wise activations used in transformer FFN blocks. Backends are
+organized into tier subfolders: `reference/` (`eager_impl.py`, `torch_impl.py`),
+`naive/` (`triton_impl.py`, `cuda_impl.py`), and `opt/` (production-grade
+kernels, empty for now). Each tier file exposes one function per activation.
+CUDA sources live in `csrc/activation/naive/` and build into a single
+per-category extension.
 
 ## Kernels
 
@@ -12,10 +13,10 @@ extension.
 
 `y = x * sigmoid(x)`.
 
-- `eager_impl.silu(x)` — eager reference, correctness oracle.
-- `torch_impl.silu(x)` — `F.silu` (fused PyTorch op).
-- `triton_impl.silu(x)` — Triton block kernel.
-- `cuda_impl.silu(x)` — custom CUDA kernel.
+- `reference/eager_impl.silu(x)` — eager reference, correctness oracle.
+- `reference/torch_impl.silu(x)` — `F.silu` (fused PyTorch op).
+- `naive/triton_impl.silu(x)` — Triton block kernel.
+- `naive/cuda_impl.silu(x)` — custom CUDA kernel.
 
 All three accept a tensor of any shape and return a tensor of the same shape
 and dtype on the same device. The triton and cuda backends require a CUDA
