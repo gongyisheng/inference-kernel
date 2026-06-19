@@ -18,9 +18,18 @@ per-category extension.
 - `naive/triton_impl.silu(x)` — Triton block kernel.
 - `naive/cuda_impl.silu(x)` — custom CUDA kernel.
 
-All three accept a tensor of any shape and return a tensor of the same shape
-and dtype on the same device. The triton and cuda backends require a CUDA
-tensor that is contiguous.
+### ReLU
+
+`y = max(x, 0)`.
+
+- `reference/eager_impl.relu(x)` — eager reference, correctness oracle.
+- `reference/torch_impl.relu(x)` — `F.relu` (fused PyTorch op).
+- `naive/triton_impl.relu(x)` — Triton block kernel.
+- `naive/cuda_impl.relu(x)` — custom CUDA kernel.
+
+All four backends per kernel accept a tensor of any shape and return a tensor
+of the same shape and dtype on the same device. The triton and cuda backends
+require a CUDA tensor that is contiguous.
 
 ## References
 
