@@ -76,7 +76,7 @@ def _backends() -> dict:
 
     try:
         from inference_kernel.kernels.norm.opt.cuda_impl import rmsnorm as rmsnorm_cuda_opt
-        backends["cuda_opt"] = rmsnorm_cuda_opt
+        backends["cuda_opt"] = _bind_weight(rmsnorm_cuda_opt)
     except ImportError:
         pass  # no opt kernel yet
 
