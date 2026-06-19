@@ -5,7 +5,7 @@ from inference_kernel._common.utils import assert_contiguous, assert_same_device
 
 _ext = load_kernel(
     package="inference_kernel.kernels.norm",
-    sources=["rmsnorm.cu", "binding.cpp"],
+    sources=["naive/rmsnorm.cu", "binding.cpp"],
 )
 
 

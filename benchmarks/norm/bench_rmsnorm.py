@@ -55,24 +55,30 @@ def _bind_weight(impl):
 def _backends() -> dict:
     backends: dict = {}
 
-    from inference_kernel.kernels.norm.eager_impl import rmsnorm as rmsnorm_eager
-    from inference_kernel.kernels.norm.torch_impl import rmsnorm as rmsnorm_torch
+    from inference_kernel.kernels.norm.reference.eager_impl import rmsnorm as rmsnorm_eager
+    from inference_kernel.kernels.norm.reference.torch_impl import rmsnorm as rmsnorm_torch
     backends["eager"] = _bind_weight(rmsnorm_eager)
     backends["torch"] = _bind_weight(
         torch.compile(rmsnorm_torch, mode="reduce-overhead")
     )
 
     try:
-        from inference_kernel.kernels.norm.triton_impl import rmsnorm as rmsnorm_triton
+        from inference_kernel.kernels.norm.naive.triton_impl import rmsnorm as rmsnorm_triton
         backends["triton"] = _bind_weight(rmsnorm_triton)
     except ImportError as e:
         print(f"  [skip] triton import failed: {e}")
 
     try:
-        from inference_kernel.kernels.norm.cuda_impl import rmsnorm as rmsnorm_cuda
+        from inference_kernel.kernels.norm.naive.cuda_impl import rmsnorm as rmsnorm_cuda
         backends["cuda"] = _bind_weight(rmsnorm_cuda)
     except ImportError as e:
         print(f"  [skip] cuda import failed: {e}")
+
+    try:
+        from inference_kernel.kernels.norm.opt.cuda_impl import rmsnorm as rmsnorm_cuda_opt
+        backends["cuda_opt"] = rmsnorm_cuda_opt
+    except ImportError:
+        pass  # no opt kernel yet
 
     try:
         from flashinfer.norm import rmsnorm as rmsnorm_fi
