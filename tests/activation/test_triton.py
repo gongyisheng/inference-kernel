@@ -2,8 +2,8 @@
 
 import pytest
 import torch
-from inference_kernel.kernels.activation.reference.eager_impl import relu as relu_ref
-from inference_kernel.kernels.activation.reference.eager_impl import silu as silu_ref
+from inference_kernel.kernels.activation.ref.eager_impl import relu as relu_ref
+from inference_kernel.kernels.activation.ref.eager_impl import silu as silu_ref
 from inference_kernel.kernels.activation.naive.triton_impl import relu as relu_triton
 from inference_kernel.kernels.activation.naive.triton_impl import silu as silu_triton
 

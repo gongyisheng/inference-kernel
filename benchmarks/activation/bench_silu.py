@@ -29,8 +29,8 @@ FLOPS_PER_ELEMENT = 2.0  # silu = mul + sigmoid; counted as ~2 ops/elem
 def _backends() -> dict:
     backends = {}
 
-    from inference_kernel.kernels.activation.reference.eager_impl import silu as silu_eager
-    from inference_kernel.kernels.activation.reference.torch_impl import silu as silu_torch
+    from inference_kernel.kernels.activation.ref.eager_impl import silu as silu_eager
+    from inference_kernel.kernels.activation.ref.torch_impl import silu as silu_torch
     # Eager is the test oracle; for benchmarking it's not a fair baseline,
     # so we ship two torch baselines: F.silu (what most users actually call)
     # and torch.compile of the eager form (what a perf-tuned user would deploy).

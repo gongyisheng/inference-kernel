@@ -6,7 +6,7 @@ Python wrappers and native sources are split at the language level, one
 backend file per category:
 
 - `python/inference_kernel/kernels/<category>/` — kernels grouped into
-  tier subfolders: `reference/` (`eager_impl.py` slow correctness oracle +
+  tier subfolders: `ref/` (`eager_impl.py` slow correctness oracle +
   `torch_impl.py` fused PyTorch ceiling), `naive/` (readable teaching
   `triton_impl.py` / `cuda_impl.py`), and `opt/` (production-grade
   hand-written kernels). Each tier file holds every kernel for the category.
@@ -29,8 +29,8 @@ For an AOT install with prebuilt extensions: `uv pip install .` (or `pip install
 ## Use
 
 ```python
-from inference_kernel.kernels.activation.reference.eager_impl  import silu as silu_eager   # slow oracle
-from inference_kernel.kernels.activation.reference.torch_impl  import silu as silu_torch   # F.silu
+from inference_kernel.kernels.activation.ref.eager_impl  import silu as silu_eager   # slow oracle
+from inference_kernel.kernels.activation.ref.torch_impl  import silu as silu_torch   # F.silu
 from inference_kernel.kernels.activation.naive.triton_impl     import silu as silu_triton
 from inference_kernel.kernels.activation.naive.cuda_impl       import silu as silu_cuda
 # from inference_kernel.kernels.activation.opt.cuda_impl       import silu as silu_cuda_opt  # when an opt kernel exists
@@ -59,7 +59,7 @@ CSV output goes to `benchmarks/results/`.
 1. Pick a tier. Educational/first version → `naive/`. Production version →
    `opt/`. Add the function to that tier's `triton_impl.py` / `cuda_impl.py`
    under `python/inference_kernel/kernels/<category>/<tier>/`. Reference
-   impls (`reference/eager_impl.py`, `reference/torch_impl.py`) are written
+   impls (`ref/eager_impl.py`, `ref/torch_impl.py`) are written
    once per kernel and shared by every tier.
 2. `csrc/<category>/<tier>/`: drop a `<name>.cu` and declare its forward in
    the category's shared `csrc/<category>/binding.cpp`. Use an `_opt` suffix
@@ -67,7 +67,7 @@ CSV output goes to `benchmarks/results/`.
    naive symbols. Point the tier's `cuda_impl.py` `sources=[...]` at the new
    `<tier>/<name>.cu`.
 3. `tests/<category>/test_{torch,triton,cuda}.py`: validate the new kernel
-   against `reference/eager_impl` — the same oracle and tolerances every
+   against `ref/eager_impl` — the same oracle and tolerances every
    tier is held to.
 4. `benchmarks/<category>/bench_<name>.py`: the benchmark overlays every
    tier that implements the kernel on one chart (opt rows appear

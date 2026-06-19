@@ -1,7 +1,7 @@
 # Activation kernels
 
 Element-wise activations used in transformer FFN blocks. Backends are
-organized into tier subfolders: `reference/` (`eager_impl.py`, `torch_impl.py`),
+organized into tier subfolders: `ref/` (`eager_impl.py`, `torch_impl.py`),
 `naive/` (`triton_impl.py`, `cuda_impl.py`), and `opt/` (production-grade
 kernels, empty for now). Each tier file exposes one function per activation.
 CUDA sources live in `csrc/activation/naive/` and build into a single
@@ -13,8 +13,8 @@ per-category extension.
 
 `y = x * sigmoid(x)`.
 
-- `reference/eager_impl.silu(x)` — eager reference, correctness oracle.
-- `reference/torch_impl.silu(x)` — `F.silu` (fused PyTorch op).
+- `ref/eager_impl.silu(x)` — eager reference, correctness oracle.
+- `ref/torch_impl.silu(x)` — `F.silu` (fused PyTorch op).
 - `naive/triton_impl.silu(x)` — Triton block kernel.
 - `naive/cuda_impl.silu(x)` — custom CUDA kernel.
 
@@ -22,8 +22,8 @@ per-category extension.
 
 `y = max(x, 0)`.
 
-- `reference/eager_impl.relu(x)` — eager reference, correctness oracle.
-- `reference/torch_impl.relu(x)` — `F.relu` (fused PyTorch op).
+- `ref/eager_impl.relu(x)` — eager reference, correctness oracle.
+- `ref/torch_impl.relu(x)` — `F.relu` (fused PyTorch op).
 - `naive/triton_impl.relu(x)` — Triton block kernel.
 - `naive/cuda_impl.relu(x)` — custom CUDA kernel.
 

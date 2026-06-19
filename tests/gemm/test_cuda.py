@@ -2,7 +2,7 @@
 
 import pytest
 import torch
-from inference_kernel.kernels.gemm.reference.eager_impl import gemm as gemm_ref
+from inference_kernel.kernels.gemm.ref.eager_impl import gemm as gemm_ref
 
 from tests.conftest import assert_close_for_gemm
 

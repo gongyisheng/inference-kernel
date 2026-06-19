@@ -8,7 +8,7 @@ import argparse
 
 import torch
 
-from inference_kernel.kernels.gemm.reference import torch_impl
+from inference_kernel.kernels.gemm.ref import torch_impl
 from inference_kernel.kernels.gemm.naive import cuda_impl, triton_impl
 
 DTYPES = {

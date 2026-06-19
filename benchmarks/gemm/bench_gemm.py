@@ -55,8 +55,8 @@ def _bind_b_with(impl, **kwargs):
 def _backends() -> dict:
     backends: dict = {}
 
-    from inference_kernel.kernels.gemm.reference.eager_impl import gemm as gemm_eager
-    from inference_kernel.kernels.gemm.reference.torch_impl import gemm as gemm_torch
+    from inference_kernel.kernels.gemm.ref.eager_impl import gemm as gemm_eager
+    from inference_kernel.kernels.gemm.ref.torch_impl import gemm as gemm_torch
     # Eager is the test oracle (broadcast-and-sum); materializes [M, N, K] so
     # it OOMs on large shapes — harness will skip those rows.
     backends["eager"] = _bind_b(gemm_eager)

@@ -55,8 +55,8 @@ def _bind_weight(impl):
 def _backends() -> dict:
     backends: dict = {}
 
-    from inference_kernel.kernels.norm.reference.eager_impl import rmsnorm as rmsnorm_eager
-    from inference_kernel.kernels.norm.reference.torch_impl import rmsnorm as rmsnorm_torch
+    from inference_kernel.kernels.norm.ref.eager_impl import rmsnorm as rmsnorm_eager
+    from inference_kernel.kernels.norm.ref.torch_impl import rmsnorm as rmsnorm_torch
     backends["eager"] = _bind_weight(rmsnorm_eager)
     backends["torch"] = _bind_weight(
         torch.compile(rmsnorm_torch, mode="reduce-overhead")

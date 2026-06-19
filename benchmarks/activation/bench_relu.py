@@ -29,8 +29,8 @@ FLOPS_PER_ELEMENT = 1.0  # relu
 def _backends() -> dict:
     backends = {}
 
-    from inference_kernel.kernels.activation.reference.eager_impl import relu as relu_eager
-    from inference_kernel.kernels.activation.reference.torch_impl import relu as relu_torch
+    from inference_kernel.kernels.activation.ref.eager_impl import relu as relu_eager
+    from inference_kernel.kernels.activation.ref.torch_impl import relu as relu_torch
 
     backends["torch"] = relu_torch
     backends["torch_compile"] = torch.compile(relu_eager, mode="reduce-overhead")
