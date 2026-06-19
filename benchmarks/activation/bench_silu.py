@@ -29,8 +29,8 @@ FLOPS_PER_ELEMENT = 2.0  # silu = mul + sigmoid; counted as ~2 ops/elem
 def _backends() -> dict:
     backends = {}
 
-    from inference_kernel.kernels.activation.eager_impl import silu as silu_eager
-    from inference_kernel.kernels.activation.torch_impl import silu as silu_torch
+    from inference_kernel.kernels.activation.reference.eager_impl import silu as silu_eager
+    from inference_kernel.kernels.activation.reference.torch_impl import silu as silu_torch
     # Eager is the test oracle; for benchmarking it's not a fair baseline,
     # so we ship two torch baselines: F.silu (what most users actually call)
     # and torch.compile of the eager form (what a perf-tuned user would deploy).
@@ -38,16 +38,22 @@ def _backends() -> dict:
     backends["torch_compile"] = torch.compile(silu_eager, mode="reduce-overhead")
 
     try:
-        from inference_kernel.kernels.activation.triton_impl import silu as silu_triton
+        from inference_kernel.kernels.activation.naive.triton_impl import silu as silu_triton
         backends["triton"] = silu_triton
     except ImportError as e:
         print(f"  [skip] triton import failed: {e}")
 
     try:
-        from inference_kernel.kernels.activation.cuda_impl import silu as silu_cuda
+        from inference_kernel.kernels.activation.naive.cuda_impl import silu as silu_cuda
         backends["cuda"] = silu_cuda
     except ImportError as e:
         print(f"  [skip] cuda import failed: {e}")
+
+    try:
+        from inference_kernel.kernels.activation.opt.cuda_impl import silu as silu_cuda_opt
+        backends["cuda_opt"] = silu_cuda_opt
+    except ImportError:
+        pass  # no opt kernel yet
 
     return backends
 
