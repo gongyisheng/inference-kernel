@@ -28,8 +28,8 @@ def discover_extensions() -> list[CUDAExtension]:
         category = category_dir.name
         sources = sorted(
             p.relative_to(ROOT).as_posix()
-            for p in category_dir.iterdir()
-            if p.suffix in {".cu", ".cpp", ".cc"}
+            for p in category_dir.rglob("*")
+            if p.is_file() and p.suffix in {".cu", ".cpp", ".cc"}
         )
         if not sources:
             continue

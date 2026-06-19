@@ -8,7 +8,8 @@ import argparse
 
 import torch
 
-from inference_kernel.kernels.gemm import cuda_impl, torch_impl, triton_impl
+from inference_kernel.kernels.gemm.reference import torch_impl
+from inference_kernel.kernels.gemm.naive import cuda_impl, triton_impl
 
 DTYPES = {
     "fp32": torch.float32,

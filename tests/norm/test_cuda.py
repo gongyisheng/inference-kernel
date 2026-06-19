@@ -2,7 +2,7 @@
 
 import pytest
 import torch
-from inference_kernel.kernels.norm.eager_impl import rmsnorm as rmsnorm_ref
+from inference_kernel.kernels.norm.reference.eager_impl import rmsnorm as rmsnorm_ref
 
 from tests.conftest import assert_close_for_rmsnorm
 
@@ -12,7 +12,7 @@ from tests.conftest import assert_close_for_rmsnorm
 def test_rmsnorm_cuda_matches_ref(
     shape: tuple[int, ...], dtype: torch.dtype, device: torch.device
 ) -> None:
-    from inference_kernel.kernels.norm.cuda_impl import rmsnorm as rmsnorm_cuda
+    from inference_kernel.kernels.norm.naive.cuda_impl import rmsnorm as rmsnorm_cuda
 
     torch.manual_seed(0)
     x = torch.randn(shape, dtype=dtype, device=device)
@@ -24,7 +24,7 @@ def test_rmsnorm_cuda_matches_ref(
 
 @pytest.mark.cuda
 def test_rmsnorm_cuda_preserves_shape_and_dtype(dtype: torch.dtype, device: torch.device) -> None:
-    from inference_kernel.kernels.norm.cuda_impl import rmsnorm as rmsnorm_cuda
+    from inference_kernel.kernels.norm.naive.cuda_impl import rmsnorm as rmsnorm_cuda
 
     x = torch.randn(3, 5, dtype=dtype, device=device)
     w = torch.randn(5, dtype=dtype, device=device)
@@ -35,7 +35,7 @@ def test_rmsnorm_cuda_preserves_shape_and_dtype(dtype: torch.dtype, device: torc
 
 @pytest.mark.cuda
 def test_rmsnorm_cuda_custom_eps_matches_ref(device: torch.device) -> None:
-    from inference_kernel.kernels.norm.cuda_impl import rmsnorm as rmsnorm_cuda
+    from inference_kernel.kernels.norm.naive.cuda_impl import rmsnorm as rmsnorm_cuda
 
     torch.manual_seed(0)
     x = torch.randn(4, 32, dtype=torch.float32, device=device)
@@ -48,7 +48,7 @@ def test_rmsnorm_cuda_custom_eps_matches_ref(device: torch.device) -> None:
 
 @pytest.mark.cuda
 def test_rmsnorm_cuda_rejects_cpu_tensor() -> None:
-    from inference_kernel.kernels.norm.cuda_impl import rmsnorm as rmsnorm_cuda
+    from inference_kernel.kernels.norm.naive.cuda_impl import rmsnorm as rmsnorm_cuda
 
     x = torch.randn(8, 16)
     w = torch.randn(16)
@@ -58,7 +58,7 @@ def test_rmsnorm_cuda_rejects_cpu_tensor() -> None:
 
 @pytest.mark.cuda
 def test_rmsnorm_cuda_rejects_non_contiguous(device: torch.device) -> None:
-    from inference_kernel.kernels.norm.cuda_impl import rmsnorm as rmsnorm_cuda
+    from inference_kernel.kernels.norm.naive.cuda_impl import rmsnorm as rmsnorm_cuda
 
     x = torch.randn(8, 8, device=device).t()
     w = torch.randn(8, device=device)

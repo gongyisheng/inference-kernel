@@ -29,23 +29,29 @@ FLOPS_PER_ELEMENT = 1.0  # relu
 def _backends() -> dict:
     backends = {}
 
-    from inference_kernel.kernels.activation.eager_impl import relu as relu_eager
-    from inference_kernel.kernels.activation.torch_impl import relu as relu_torch
+    from inference_kernel.kernels.activation.reference.eager_impl import relu as relu_eager
+    from inference_kernel.kernels.activation.reference.torch_impl import relu as relu_torch
 
     backends["torch"] = relu_torch
     backends["torch_compile"] = torch.compile(relu_eager, mode="reduce-overhead")
 
     try:
-        from inference_kernel.kernels.activation.triton_impl import relu as relu_triton
+        from inference_kernel.kernels.activation.naive.triton_impl import relu as relu_triton
         backends["triton"] = relu_triton
     except ImportError as e:
         print(f"  [skip] triton import failed: {e}")
 
     try:
-        from inference_kernel.kernels.activation.cuda_impl import relu as relu_cuda
+        from inference_kernel.kernels.activation.naive.cuda_impl import relu as relu_cuda
         backends["cuda"] = relu_cuda
     except ImportError as e:
         print(f"  [skip] cuda import failed: {e}")
+
+    try:
+        from inference_kernel.kernels.activation.opt.cuda_impl import relu as relu_cuda_opt
+        backends["cuda_opt"] = relu_cuda_opt
+    except ImportError:
+        pass  # no opt kernel yet
 
     return backends
 

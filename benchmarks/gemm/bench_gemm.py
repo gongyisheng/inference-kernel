@@ -55,8 +55,8 @@ def _bind_b_with(impl, **kwargs):
 def _backends() -> dict:
     backends: dict = {}
 
-    from inference_kernel.kernels.gemm.eager_impl import gemm as gemm_eager
-    from inference_kernel.kernels.gemm.torch_impl import gemm as gemm_torch
+    from inference_kernel.kernels.gemm.reference.eager_impl import gemm as gemm_eager
+    from inference_kernel.kernels.gemm.reference.torch_impl import gemm as gemm_torch
     # Eager is the test oracle (broadcast-and-sum); materializes [M, N, K] so
     # it OOMs on large shapes — harness will skip those rows.
     backends["eager"] = _bind_b(gemm_eager)
@@ -64,17 +64,23 @@ def _backends() -> dict:
     backends["torch"] = _bind_b(gemm_torch)
 
     try:
-        from inference_kernel.kernels.gemm.triton_impl import gemm as gemm_triton
+        from inference_kernel.kernels.gemm.naive.triton_impl import gemm as gemm_triton
         backends["triton_thread"] = _bind_b_with(gemm_triton, kernel_implementation="thread")
         backends["triton_tile"] = _bind_b_with(gemm_triton, kernel_implementation="tile")
     except ImportError as e:
         print(f"  [skip] triton import failed: {e}")
 
     try:
-        from inference_kernel.kernels.gemm.cuda_impl import gemm as gemm_cuda
+        from inference_kernel.kernels.gemm.naive.cuda_impl import gemm as gemm_cuda
         backends["cuda"] = _bind_b(gemm_cuda)
     except ImportError as e:
         print(f"  [skip] cuda import failed: {e}")
+
+    try:
+        from inference_kernel.kernels.gemm.opt.cuda_impl import gemm as gemm_cuda_opt
+        backends["cuda_opt"] = _bind_b(gemm_cuda_opt)
+    except ImportError:
+        pass  # no opt kernel yet
 
     return backends
 

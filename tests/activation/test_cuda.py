@@ -2,8 +2,8 @@
 
 import pytest
 import torch
-from inference_kernel.kernels.activation.eager_impl import relu as relu_ref
-from inference_kernel.kernels.activation.eager_impl import silu as silu_ref
+from inference_kernel.kernels.activation.reference.eager_impl import relu as relu_ref
+from inference_kernel.kernels.activation.reference.eager_impl import silu as silu_ref
 
 from tests.conftest import assert_close_for_relu, assert_close_for_silu
 
@@ -13,7 +13,7 @@ from tests.conftest import assert_close_for_relu, assert_close_for_silu
 def test_silu_cuda_matches_ref(
     shape: tuple[int, ...], dtype: torch.dtype, device: torch.device
 ) -> None:
-    from inference_kernel.kernels.activation.cuda_impl import silu as silu_cuda
+    from inference_kernel.kernels.activation.naive.cuda_impl import silu as silu_cuda
 
     torch.manual_seed(0)
     x = torch.randn(shape, dtype=dtype, device=device)
@@ -24,7 +24,7 @@ def test_silu_cuda_matches_ref(
 
 @pytest.mark.cuda
 def test_silu_cuda_rejects_cpu_tensor() -> None:
-    from inference_kernel.kernels.activation.cuda_impl import silu as silu_cuda
+    from inference_kernel.kernels.activation.naive.cuda_impl import silu as silu_cuda
 
     x = torch.randn(8)  # CPU
     with pytest.raises((ValueError, RuntimeError)):
@@ -33,7 +33,7 @@ def test_silu_cuda_rejects_cpu_tensor() -> None:
 
 @pytest.mark.cuda
 def test_silu_cuda_rejects_non_contiguous(device: torch.device) -> None:
-    from inference_kernel.kernels.activation.cuda_impl import silu as silu_cuda
+    from inference_kernel.kernels.activation.naive.cuda_impl import silu as silu_cuda
 
     x = torch.randn(8, 8, device=device).t()
     assert not x.is_contiguous()
@@ -46,7 +46,7 @@ def test_silu_cuda_rejects_non_contiguous(device: torch.device) -> None:
 def test_relu_cuda_matches_ref(
     shape: tuple[int, ...], dtype: torch.dtype, device: torch.device
 ) -> None:
-    from inference_kernel.kernels.activation.cuda_impl import relu as relu_cuda
+    from inference_kernel.kernels.activation.naive.cuda_impl import relu as relu_cuda
 
     torch.manual_seed(0)
     x = torch.randn(shape, dtype=dtype, device=device)
@@ -57,7 +57,7 @@ def test_relu_cuda_matches_ref(
 
 @pytest.mark.cuda
 def test_relu_cuda_rejects_cpu_tensor() -> None:
-    from inference_kernel.kernels.activation.cuda_impl import relu as relu_cuda
+    from inference_kernel.kernels.activation.naive.cuda_impl import relu as relu_cuda
 
     x = torch.randn(8)  # CPU
     with pytest.raises((ValueError, RuntimeError)):
@@ -66,7 +66,7 @@ def test_relu_cuda_rejects_cpu_tensor() -> None:
 
 @pytest.mark.cuda
 def test_relu_cuda_rejects_non_contiguous(device: torch.device) -> None:
-    from inference_kernel.kernels.activation.cuda_impl import relu as relu_cuda
+    from inference_kernel.kernels.activation.naive.cuda_impl import relu as relu_cuda
 
     x = torch.randn(8, 8, device=device).t()
     assert not x.is_contiguous()

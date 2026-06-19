@@ -2,8 +2,8 @@
 
 import pytest
 import torch
-from inference_kernel.kernels.gemm.eager_impl import gemm as gemm_ref
-from inference_kernel.kernels.gemm.triton_impl import gemm as gemm_triton
+from inference_kernel.kernels.gemm.reference.eager_impl import gemm as gemm_ref
+from inference_kernel.kernels.gemm.naive.triton_impl import gemm as gemm_triton
 
 from tests.conftest import assert_close_for_gemm
 

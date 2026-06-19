@@ -2,8 +2,8 @@
 
 import pytest
 import torch
-from inference_kernel.kernels.norm.eager_impl import rmsnorm as rmsnorm_ref
-from inference_kernel.kernels.norm.triton_impl import rmsnorm as rmsnorm_triton
+from inference_kernel.kernels.norm.reference.eager_impl import rmsnorm as rmsnorm_ref
+from inference_kernel.kernels.norm.naive.triton_impl import rmsnorm as rmsnorm_triton
 
 from tests.conftest import assert_close_for_rmsnorm
 

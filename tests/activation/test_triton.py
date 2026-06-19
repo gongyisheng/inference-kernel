@@ -2,10 +2,10 @@
 
 import pytest
 import torch
-from inference_kernel.kernels.activation.eager_impl import relu as relu_ref
-from inference_kernel.kernels.activation.eager_impl import silu as silu_ref
-from inference_kernel.kernels.activation.triton_impl import relu as relu_triton
-from inference_kernel.kernels.activation.triton_impl import silu as silu_triton
+from inference_kernel.kernels.activation.reference.eager_impl import relu as relu_ref
+from inference_kernel.kernels.activation.reference.eager_impl import silu as silu_ref
+from inference_kernel.kernels.activation.naive.triton_impl import relu as relu_triton
+from inference_kernel.kernels.activation.naive.triton_impl import silu as silu_triton
 
 from tests.conftest import assert_close_for_relu, assert_close_for_silu
 
@@ -28,7 +28,7 @@ def test_silu_triton_non_contiguous_raises_or_handles(device: torch.device) -> N
     x = torch.randn(8, 8, device=device).t()  # non-contiguous
     assert not x.is_contiguous()
     with pytest.raises((ValueError, RuntimeError)):
-        from inference_kernel.kernels.activation.triton_impl import silu
+        from inference_kernel.kernels.activation.naive.triton_impl import silu
 
         silu(x)
 

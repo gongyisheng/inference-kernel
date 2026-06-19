@@ -2,8 +2,8 @@
 
 import pytest
 import torch
-from inference_kernel.kernels.norm.eager_impl import rmsnorm as rmsnorm_ref
-from inference_kernel.kernels.norm.torch_impl import rmsnorm as rmsnorm_torch
+from inference_kernel.kernels.norm.reference.eager_impl import rmsnorm as rmsnorm_ref
+from inference_kernel.kernels.norm.reference.torch_impl import rmsnorm as rmsnorm_torch
 
 from tests.conftest import assert_close_for_rmsnorm
 
