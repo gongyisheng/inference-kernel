@@ -62,22 +62,10 @@ void gemm(
     torch::Tensor a,
     torch::Tensor b
 ){
-    TORCH_CHECK(a.is_cuda(), "[gemm] a must be a cuda tensor, got ", a.device());
-    TORCH_CHECK(b.is_cuda(), "[gemm] b must be a cuda tensor, got ", b.device());
-    TORCH_CHECK(a.device() == b.device(), "[gemm] a and b are not on the same device, got a.device=", a.device(), " b.device=", b.device());
-    TORCH_CHECK(a.is_contiguous(), "[gemm] a is not contiguous");
-    TORCH_CHECK(b.is_contiguous(), "[gemm] b is not contiguous");
-    TORCH_CHECK(a.dtype() == b.dtype(), "[gemm] a and b has different dtype, got a.dtype=", a.dtype(), " b.dtype=", b.dtype());
-    TORCH_CHECK(a.dim() == 2, "[gemm] dim of a is not 2, got ", a.dim());
-    TORCH_CHECK(b.dim() == 2, "[gemm] dim of b is not 2, got ", b.dim());
-
+    // Input validation lives on the Python side (see gemm/naive/cuda_impl.py).
     const int64_t M = a.size(0);
-    const int64_t K1 = a.size(1);
-    const int64_t K2 = b.size(0);
     const int64_t N = b.size(1);
-
-    TORCH_CHECK(K1 == K2, "[gemm] inner dims mismatch: ", K1, " vs ", K2);
-    int64_t K = K1;
+    const int64_t K = a.size(1);
 
     constexpr int BLOCK_K = 128;
     const dim3 grid(M, N);
