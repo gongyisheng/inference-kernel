@@ -2,6 +2,9 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+#include "dispatch.h"
+#include "cast.cuh"
+
 template <typename scalar_t>
 __global__ void silu_kernel(
     const scalar_t* __restrict__ x,
@@ -10,32 +13,29 @@ __global__ void silu_kernel(
 ) {
     const int64_t i = blockIdx.x * static_cast<int64_t>(blockDim.x) + threadIdx.x;
     if (i < n) {
-        const float xv = static_cast<float>(x[i]);
+        const float xv = to_float(x[i]);
         const float yv = xv / (1.0f + expf(-xv));
-        y[i] = static_cast<scalar_t>(yv);
+        y[i] = from_float<scalar_t>(yv);
     }
 }
 
-torch::Tensor silu_forward(torch::Tensor x) {
+void silu_forward(torch::Tensor out, torch::Tensor x) {
     TORCH_CHECK(x.is_cuda(), "x must be a CUDA tensor");
     TORCH_CHECK(x.is_contiguous(), "x must be contiguous");
 
-    auto y = torch::empty_like(x);
     const int64_t n = x.numel();
-    if (n == 0) return y;
+    if (n == 0) return;
 
     const int threads = 256;
     const int64_t blocks = (n + threads - 1) / threads;
 
-    AT_DISPATCH_FLOATING_TYPES_AND2(
-        at::ScalarType::Half, at::ScalarType::BFloat16,
-        x.scalar_type(), "silu_forward", [&] {
-            silu_kernel<scalar_t><<<blocks, threads>>>(
-                x.data_ptr<scalar_t>(),
-                y.data_ptr<scalar_t>(),
-                n
-            );
-        }
-    );
-    return y;
+    const bool ok = DISPATCH_FLOATING_TYPES(x.scalar_type(), c_type, [&] {
+        silu_kernel<c_type><<<blocks, threads>>>(
+            static_cast<const c_type*>(x.data_ptr()),
+            static_cast<c_type*>(out.data_ptr()),
+            n
+        );
+        return true;
+    });
+    TORCH_CHECK(ok, "[silu] unsupported dtype: ", x.scalar_type());
 }

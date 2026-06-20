@@ -1,9 +1,17 @@
-#include <torch/extension.h>
+#include <torch/library.h>
+#include <torch/types.h>
 
-torch::Tensor relu_forward(torch::Tensor x);
-torch::Tensor silu_forward(torch::Tensor x);
+#include "registration.h"
 
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("relu_forward", &relu_forward, "relu forward cuda kernel");
-    m.def("silu_forward", &silu_forward, "silu forward cuda kernel");
+void relu_forward(torch::Tensor out, torch::Tensor x);
+void silu_forward(torch::Tensor out, torch::Tensor x);
+
+TORCH_LIBRARY_FRAGMENT(inference_kernel, m) {
+    m.def("relu_forward(Tensor! out, Tensor x) -> ()");
+    m.impl("relu_forward", torch::kCUDA, &relu_forward);
+
+    m.def("silu_forward(Tensor! out, Tensor x) -> ()");
+    m.impl("silu_forward", torch::kCUDA, &silu_forward);
 }
+
+REGISTER_EXTENSION(TORCH_EXTENSION_NAME)

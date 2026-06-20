@@ -1,7 +1,13 @@
-#include <torch/extension.h>
+#include <torch/library.h>
+#include <torch/types.h>
 
-torch::Tensor gemm(torch::Tensor a, torch::Tensor b);
+#include "registration.h"
 
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("gemm", &gemm, "gemm cuda kernel");
+void gemm(torch::Tensor out, torch::Tensor a, torch::Tensor b);
+
+TORCH_LIBRARY_FRAGMENT(inference_kernel, m) {
+    m.def("gemm(Tensor! out, Tensor a, Tensor b) -> ()");
+    m.impl("gemm", torch::kCUDA, &gemm);
 }
+
+REGISTER_EXTENSION(TORCH_EXTENSION_NAME)

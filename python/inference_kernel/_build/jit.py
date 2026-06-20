@@ -91,6 +91,7 @@ def load_kernel(
     return load(
         name=jit_name,
         sources=full_sources,
+        extra_include_paths=[str(csrc_dir.parent / "include")],
         extra_cuda_cflags=extra_cuda_cflags or ["-O3", "--use_fast_math"],
         extra_cflags=extra_cflags or ["-O3", "-std=c++17"],
         verbose=False,
