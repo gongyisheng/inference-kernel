@@ -2,12 +2,12 @@
 name = "inference-kernel"
 version = "0.0.1"
 description = "GPU inference kernels with torch, triton, and CUDA implementations"
-requires-python = ">=3.12"
+requires-python = "==3.12.*"
 readme = "README.md"
 dependencies = [
-    "torch>=2.11",
-    "triton>=3.6",
-    "numpy>=2",
+    "torch==2.11.0",
+    "triton==3.6.0",
+    "numpy==2.4.4",
 ]
 
 [project.optional-dependencies]
@@ -22,8 +22,15 @@ dev = [
 ]
 
 [build-system]
-requires = ["setuptools>=75", "wheel", "torch>=2.11"]
+requires = ["setuptools>=75", "wheel", "torch==2.11.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.uv]
+# Build this project against the torch already in the venv instead of a fresh
+# isolated env (which would reinstall the ~2GB CUDA torch wheel every rebuild
+# and risk an ABI mismatch with the runtime torch). Build deps must be present
+# in the env — they are (torch / setuptools / wheel).
+no-build-isolation-package = ["inference-kernel"]
 
 [tool.setuptools.packages.find]
 where = ["python"]
