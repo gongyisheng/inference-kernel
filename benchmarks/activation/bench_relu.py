@@ -57,12 +57,6 @@ def _backends() -> dict:
         print(f"  [skip] cuda import failed: {e}")
 
     try:
-        from inference_kernel.kernels.activation.opt.triton_impl import relu as relu_triton_opt
-        backends["triton_opt"] = relu_triton_opt  # @triton.autotune picks the config
-    except ImportError as e:
-        print(f"  [skip] triton opt import failed: {e}")
-
-    try:
         from inference_kernel.kernels.activation.opt.cuda_impl import relu as relu_cuda_opt
         backends["cuda_opt"] = relu_cuda_opt
     except ImportError:
