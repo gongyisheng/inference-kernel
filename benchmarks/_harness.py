@@ -50,7 +50,7 @@ def _time_gpu(fn: Callable[[], torch.Tensor]) -> float:
     """
     import triton.testing  # type: ignore
 
-    return float(triton.testing.do_bench(fn, warmup=50, rep=300))
+    return float(triton.testing.do_bench(fn, warmup=250, rep=750))
 
 
 def _time_cpu(fn: Callable[[], torch.Tensor]) -> float:
