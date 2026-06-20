@@ -58,7 +58,7 @@ def _gemm_kernel_tile(
         mask_b = ((offset_k[:, None]+k)<K) & (offset_n[None, :]<N)
         a = tl.load(a_base_ptr, mask=mask_a, other=0.0)
         b = tl.load(b_base_ptr, mask=mask_b, other=0.0)
-        acc += tl.dot(a, b)
+        acc += tl.dot(a, b, input_precision="ieee")
         a_base_ptr += BLOCK_K * stride_ak
         b_base_ptr += BLOCK_K * stride_bk
 
