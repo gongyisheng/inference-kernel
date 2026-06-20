@@ -1,7 +1,13 @@
-#include <torch/extension.h>
+#include <torch/library.h>
+#include <torch/types.h>
 
-torch::Tensor rmsnorm_forward(torch::Tensor x, torch::Tensor weight, double eps);
+#include "registration.h"
 
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("rmsnorm_forward", &rmsnorm_forward, "rmsnorm forward cuda kernel");
+void rmsnorm_forward(torch::Tensor out, torch::Tensor x, torch::Tensor weight, double eps);
+
+TORCH_LIBRARY_FRAGMENT(inference_kernel, m) {
+    m.def("rmsnorm_forward(Tensor! out, Tensor x, Tensor weight, float eps) -> ()");
+    m.impl("rmsnorm_forward", torch::kCUDA, &rmsnorm_forward);
 }
+
+REGISTER_EXTENSION(TORCH_EXTENSION_NAME)

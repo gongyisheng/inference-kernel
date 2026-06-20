@@ -1,15 +1,19 @@
 """Build CUDA extensions for inference_kernel.
 
-All other packaging metadata lives in pyproject.toml. This file exists
-solely because torch.utils.cpp_extension.CUDAExtension requires
-distutils-style setup() to compile .cu sources AOT.
+JIT is the default: kernels compile lazily via load_kernel and are cached
+under ~/.cache/torch_extensions/, auto-recompiling when a .cu changes. So a
+normal `pip`/`uv` install does NOT compile anything — it stays instant.
 
-Each category drops its sources at csrc/<category>/. We auto-discover
-those and register one extension per category. The extension module name
-is `inference_kernel.kernels.<category>._ext`, and the category's
-cuda_impl.py imports it (with a JIT fallback if not built).
+AOT compilation is opt-in via the IK_BUILD_EXT=1 env var (e.g. for a prod
+wheel). When set, we auto-discover csrc/<category>/ and register one
+extension per category, named `inference_kernel.kernels.<category>._ext`,
+which the category's cuda_impl.py imports (else it falls back to JIT):
+    IK_BUILD_EXT=1 python setup.py build_ext --inplace
+
+All other packaging metadata lives in pyproject.toml.
 """
 
+import os
 from pathlib import Path
 
 from setuptools import setup
@@ -38,6 +42,7 @@ def discover_extensions() -> list[CUDAExtension]:
             CUDAExtension(
                 name=ext_name,
                 sources=sources,
+                include_dirs=[str(CSRC_ROOT / "include")],
                 extra_compile_args={
                     "cxx": ["-O3", "-std=c++17"],
                     "nvcc": ["-O3", "--use_fast_math"],
@@ -48,7 +53,8 @@ def discover_extensions() -> list[CUDAExtension]:
 
 
 if __name__ == "__main__":
+    build_aot = os.environ.get("IK_BUILD_EXT") == "1"
     setup(
-        ext_modules=discover_extensions(),
+        ext_modules=discover_extensions() if build_aot else [],
         cmdclass={"build_ext": BuildExtension},
     )

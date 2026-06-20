@@ -2,6 +2,9 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_bf16.h>
+#include <type_traits>
+
+#include "dispatch.h"
 
 // Block-wide sum reduction: shared-memory tree down to 32, then warp shuffle.
 __device__ inline float block_reduce_sum(float val, float* sdata) {
@@ -179,7 +182,8 @@ __global__ void rmsnorm_kernel_fp16_bf16(
 }
 
 
-torch::Tensor rmsnorm_forward(
+void rmsnorm_forward(
+    torch::Tensor out,
     torch::Tensor x,
     torch::Tensor weight,
     double eps
@@ -193,8 +197,7 @@ torch::Tensor rmsnorm_forward(
     TORCH_CHECK(weight.dim() == 1, "[rmsnorm] dim of weight is not 1, got ", weight.dim());
     TORCH_CHECK(weight.size(0) == x.size(-1), "[rmsnorm] weight length must equal to x.size(-1), got weight_length=", weight.size(0), " x.size(-1)=", x.size(-1));
 
-    auto y = torch::empty_like(x);
-    if (x.numel() == 0) return y;
+    if (x.numel() == 0) return;
 
     const int64_t N = x.size(-1);
     const int64_t M = x.numel() / N;
@@ -216,31 +219,21 @@ torch::Tensor rmsnorm_forward(
     dim3 block(threads);
     const float eps_f = static_cast<float>(eps);
 
-    switch (x.scalar_type()) {
-        case at::ScalarType::Float:
+    const bool ok = DISPATCH_FLOATING_TYPES(x.scalar_type(), c_type, [&] {
+        if constexpr (std::is_same_v<c_type, float>) {
             rmsnorm_kernel_fp32<<<grid, block, smem_bytes>>>(
-                x.data_ptr<float>(),
-                weight.data_ptr<float>(),
-                y.data_ptr<float>(),
+                static_cast<const float*>(x.data_ptr()),
+                static_cast<const float*>(weight.data_ptr()),
+                static_cast<float*>(out.data_ptr()),
                 N, N, eps_f);
-            break;
-        case at::ScalarType::Half:
-            rmsnorm_kernel_fp16_bf16<__half><<<grid, block, smem_bytes>>>(
-                reinterpret_cast<const __half*>(x.data_ptr<at::Half>()),
-                reinterpret_cast<const __half*>(weight.data_ptr<at::Half>()),
-                reinterpret_cast<__half*>(y.data_ptr<at::Half>()),
+        } else {
+            rmsnorm_kernel_fp16_bf16<c_type><<<grid, block, smem_bytes>>>(
+                static_cast<const c_type*>(x.data_ptr()),
+                static_cast<const c_type*>(weight.data_ptr()),
+                static_cast<c_type*>(out.data_ptr()),
                 N, N, eps_f);
-            break;
-        case at::ScalarType::BFloat16:
-            rmsnorm_kernel_fp16_bf16<__nv_bfloat16><<<grid, block, smem_bytes>>>(
-                reinterpret_cast<const __nv_bfloat16*>(x.data_ptr<at::BFloat16>()),
-                reinterpret_cast<const __nv_bfloat16*>(weight.data_ptr<at::BFloat16>()),
-                reinterpret_cast<__nv_bfloat16*>(y.data_ptr<at::BFloat16>()),
-                N, N, eps_f);
-            break;
-        default:
-            TORCH_CHECK(false, "[rmsnorm] unsupported dtype: ", x.scalar_type());
-    }
-
-    return y;
+        }
+        return true;
+    });
+    TORCH_CHECK(ok, "[rmsnorm] unsupported dtype: ", x.scalar_type());
 }

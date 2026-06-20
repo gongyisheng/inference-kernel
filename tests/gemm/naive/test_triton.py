@@ -1,4 +1,4 @@
-"""Triton gemm correctness vs torch eager reference."""
+"""Triton (naive tier) gemm correctness vs ref eager reference."""
 
 import pytest
 import torch

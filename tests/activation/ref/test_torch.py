@@ -1,4 +1,4 @@
-"""Fast torch silu/relu correctness vs torch eager reference."""
+"""Torch (ref tier) silu/relu correctness vs eager reference."""
 
 import pytest
 import torch

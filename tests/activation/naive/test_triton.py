@@ -1,4 +1,4 @@
-"""Triton silu/relu correctness vs torch eager reference."""
+"""Triton (naive tier) silu/relu correctness vs ref eager reference."""
 
 import pytest
 import torch

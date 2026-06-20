@@ -1,4 +1,4 @@
-"""Fast torch gemm correctness vs torch reference."""
+"""Torch (ref tier) gemm correctness vs eager reference."""
 
 import pytest
 import torch

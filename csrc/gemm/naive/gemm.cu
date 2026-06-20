@@ -3,6 +3,9 @@
 #include <cuda_runtime.h>
 #include <cuda_bf16.h>
 
+#include "dispatch.h"
+#include "cast.cuh"
+
 template <typename scalar_t, int BLOCK_K>
 __global__ void gemm_kernel_thread(
     const scalar_t* __restrict__ a,
@@ -28,8 +31,8 @@ __global__ void gemm_kernel_thread(
     for (int64_t k0 = 0; k0 < K; k0 += BLOCK_K) {
         const int64_t k = k0 + tid;
         if (k < K) {
-            const float a_val = static_cast<float>(a_row[k * stride_ak]);
-            const float b_val = static_cast<float>(b_col[k * stride_bk]);
+            const float a_val = to_float(a_row[k * stride_ak]);
+            const float b_val = to_float(b_col[k * stride_bk]);
             acc += a_val * b_val;
         }
     }
@@ -49,12 +52,13 @@ __global__ void gemm_kernel_thread(
             v += __shfl_down_sync(0xffffffff, v, offset);
         }
         if (tid == 0) {
-            *c_out = static_cast<scalar_t>(v);
+            *c_out = from_float<scalar_t>(v);
         }
     }
 }
 
-torch::Tensor gemm(
+void gemm(
+    torch::Tensor out,
     torch::Tensor a,
     torch::Tensor b
 ){
@@ -74,24 +78,22 @@ torch::Tensor gemm(
 
     TORCH_CHECK(K1 == K2, "[gemm] inner dims mismatch: ", K1, " vs ", K2);
     int64_t K = K1;
-    
-    auto c = torch::empty({M, N}, torch::TensorOptions().device(a.device()).dtype(a.dtype()));
 
     constexpr int BLOCK_K = 128;
     const dim3 grid(M, N);
     const dim3 block(BLOCK_K);
     const size_t smem = BLOCK_K * sizeof(float);
 
-    AT_DISPATCH_FLOATING_TYPES_AND2(at::kHalf, at::kBFloat16,
-        a.scalar_type(), "gemm_kernel_thread", [&] {
-            gemm_kernel_thread<scalar_t, BLOCK_K><<<grid, block, smem>>>(
-                a.data_ptr<scalar_t>(), b.data_ptr<scalar_t>(),
-                c.data_ptr<scalar_t>(), K,
-                a.stride(0), a.stride(1),
-                b.stride(0), b.stride(1),
-                c.stride(0), c.stride(1)
-            );
-        }
-    );
-    return c;
+    const bool ok = DISPATCH_FLOATING_TYPES(a.scalar_type(), c_type, [&] {
+        gemm_kernel_thread<c_type, BLOCK_K><<<grid, block, smem>>>(
+            static_cast<const c_type*>(a.data_ptr()),
+            static_cast<const c_type*>(b.data_ptr()),
+            static_cast<c_type*>(out.data_ptr()), K,
+            a.stride(0), a.stride(1),
+            b.stride(0), b.stride(1),
+            out.stride(0), out.stride(1)
+        );
+        return true;
+    });
+    TORCH_CHECK(ok, "[gemm] unsupported dtype: ", a.scalar_type());
 }

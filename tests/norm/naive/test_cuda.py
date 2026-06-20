@@ -1,4 +1,4 @@
-"""CUDA rmsnorm correctness vs torch eager reference (also smoke-tests the JIT loader)."""
+"""CUDA (naive tier) rmsnorm correctness vs ref eager reference (also smoke-tests the JIT loader)."""
 
 import pytest
 import torch

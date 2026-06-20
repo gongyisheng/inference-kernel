@@ -3,7 +3,8 @@ import torch
 from inference_kernel._build.jit import load_kernel
 from inference_kernel._common.utils import assert_contiguous, assert_same_device, assert_same_dtype
 
-_ext = load_kernel(
+# Import for its registration side effect; ops are called via torch.ops below.
+load_kernel(
     package="inference_kernel.kernels.norm",
     sources=["naive/rmsnorm.cu", "binding.cpp"],
 )
@@ -16,4 +17,6 @@ def rmsnorm(x: torch.Tensor, weight: torch.Tensor, eps: float = 1e-6) -> torch.T
     assert_contiguous(x, weight)
     assert_same_device(x, weight)
     assert_same_dtype(x, weight)
-    return _ext.rmsnorm_forward(x, weight, eps)
+    out = torch.empty_like(x)
+    torch.ops.inference_kernel.rmsnorm_forward(out, x, weight, eps)
+    return out

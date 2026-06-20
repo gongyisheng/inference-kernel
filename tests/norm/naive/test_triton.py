@@ -1,4 +1,4 @@
-"""Triton rmsnorm correctness vs torch eager reference."""
+"""Triton (naive tier) rmsnorm correctness vs ref eager reference."""
 
 import pytest
 import torch
