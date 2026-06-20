@@ -8,8 +8,8 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--device",
         action="store",
-        default="cuda:0",
-        help="CUDA device for GPU tests (e.g. cuda:0, cuda:1). Default: cuda:0.",
+        default="cuda",
+        help="CUDA device for GPU tests (e.g. cuda, cuda:1). Default: cuda.",
     )
 
 

@@ -1,6 +1,6 @@
 """Benchmark rmsnorm across torch / triton backends.
 
-Run:  python benchmarks/norm/bench_rmsnorm.py --device cuda:0
+Run:  python benchmarks/norm/bench_rmsnorm.py --device cuda
 """
 
 import argparse
@@ -109,7 +109,7 @@ def _make_input(shape, dtype, device):
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--device", default="cuda:0")
+    p.add_argument("--device", default="cuda")
     args = p.parse_args()
     device = torch.device(args.device)
     if device.type == "cuda" and not torch.cuda.is_available():

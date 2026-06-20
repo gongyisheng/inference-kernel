@@ -6,13 +6,13 @@ and write CSV to `results/`.
 ## Run a single benchmark
 
 ```bash
-uv run python -m benchmarks.activation.bench_silu --device cuda:0
+uv run python -m benchmarks.activation.bench_silu --device cuda
 ```
 
 ## Run all benchmarks
 
 ```bash
-uv run python scripts/run_all_benches.py --device cuda:0
+uv run python scripts/run_all_benches.py --device cuda
 ```
 
 ## CSV schema

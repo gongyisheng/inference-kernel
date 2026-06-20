@@ -9,7 +9,6 @@ from tests.conftest import assert_close_for_gemm
 
 
 @pytest.mark.triton
-@pytest.mark.parametrize("impl", ["thread", "tile"])
 @pytest.mark.parametrize(
     "shape",
     [(8, 16, 8), (32, 64, 32), (17, 33, 23), (64, 128, 32), (128, 256, 128)],
@@ -18,36 +17,26 @@ from tests.conftest import assert_close_for_gemm
 def test_gemm_triton_matches_ref(
     shape: tuple[int, int, int],
     dtype: torch.dtype,
-    impl: str,
     device: torch.device,
 ) -> None:
     M, K, N = shape
     torch.manual_seed(0)
     a = torch.randn(M, K, dtype=dtype, device=device)
     b = torch.randn(K, N, dtype=dtype, device=device)
-    got = gemm_triton(a, b, kernel_implementation=impl)
+    got = gemm_triton(a, b)
     expected = gemm_ref(a, b)
     assert_close_for_gemm(got, expected, dtype)
 
 
 @pytest.mark.triton
-@pytest.mark.parametrize("impl", ["thread", "tile"])
 def test_gemm_triton_preserves_shape_and_dtype(
-    dtype: torch.dtype, impl: str, device: torch.device
+    dtype: torch.dtype, device: torch.device
 ) -> None:
     a = torch.randn(3, 5, dtype=dtype, device=device)
     b = torch.randn(5, 7, dtype=dtype, device=device)
-    c = gemm_triton(a, b, kernel_implementation=impl)
+    c = gemm_triton(a, b)
     assert c.shape == (3, 7)
     assert c.dtype == a.dtype
-
-
-@pytest.mark.triton
-def test_gemm_triton_unknown_impl_raises(device: torch.device) -> None:
-    a = torch.randn(4, 8, device=device)
-    b = torch.randn(8, 4, device=device)
-    with pytest.raises(ValueError):
-        gemm_triton(a, b, kernel_implementation="bogus")
 
 
 @pytest.mark.triton

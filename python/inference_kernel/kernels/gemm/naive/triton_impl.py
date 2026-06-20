@@ -6,34 +6,7 @@ from inference_kernel._common.utils import assert_contiguous, assert_same_device
 
 
 @triton.jit
-def _gemm_kernel_thread(
-    a_ptr, b_ptr, c_ptr,
-    K,
-    stride_am, stride_ak,
-    stride_bk, stride_bn,
-    stride_cm, stride_cn,
-    BLOCK_K: tl.constexpr
-):
-    pid_m = tl.program_id(axis=0)
-    pid_n = tl.program_id(axis=1)
-    offset_k = tl.arange(0, BLOCK_K)
-    a_base_ptr = a_ptr + pid_m * stride_am + offset_k * stride_ak
-    b_base_ptr = b_ptr + offset_k * stride_bk + pid_n * stride_bn
-    c_base_ptr = c_ptr + pid_m * stride_cm + pid_n * stride_cn
-
-    acc = tl.zeros((), dtype=tl.float32)
-    for k in range(0, K, BLOCK_K):
-        mask = offset_k + k < K
-        a = tl.load(a_base_ptr, mask=mask, other=0.0)
-        b = tl.load(b_base_ptr, mask=mask, other=0.0)
-        acc += tl.sum(a.to(tl.float32) * b.to(tl.float32))
-        a_base_ptr += BLOCK_K * stride_ak
-        b_base_ptr += BLOCK_K * stride_bk
-    tl.store(c_base_ptr, acc.to(c_ptr.dtype.element_ty))
-
-
-@triton.jit
-def _gemm_kernel_tile(
+def _gemm_kernel(
     a_ptr, b_ptr, c_ptr,
     M, N, K,
     stride_am, stride_ak,
@@ -67,10 +40,7 @@ def _gemm_kernel_tile(
     tl.store(c_base_ptr, acc.to(c_ptr.dtype.element_ty), c_mask)
 
 
-def gemm(a: torch.Tensor, b: torch.Tensor, kernel_implementation: str ="tile") -> torch.Tensor:
-    supported_impl = ["thread", "tile"]
-    if kernel_implementation not in supported_impl:
-        raise ValueError(f"Unknown kernel_implementation: {kernel_implementation}, supported: {supported_impl}")
+def gemm(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     if not a.is_cuda or not b.is_cuda:
         raise ValueError("triton gemm requires CUDA tensors")
     assert_contiguous(a)
@@ -84,32 +54,17 @@ def gemm(a: torch.Tensor, b: torch.Tensor, kernel_implementation: str ="tile") -
     K = K1
     c = torch.empty((M, N), device=device, dtype=dtype)
 
-    if kernel_implementation == "thread":
-        BLOCK_K = 64
+    BLOCK_M = 128
+    BLOCK_N = 128
+    BLOCK_K = 32
 
-        grid = (M, N)
-        _gemm_kernel_thread[grid](
-            a, b, c,
-            K,
-            a.stride(0), a.stride(1),
-            b.stride(0), b.stride(1),
-            c.stride(0), c.stride(1),
-            BLOCK_K=BLOCK_K
-        )
-        return c
-
-    if kernel_implementation == "tile":
-        BLOCK_M = 128
-        BLOCK_N = 128
-        BLOCK_K = 32
-
-        grid = (triton.cdiv(M, BLOCK_M), triton.cdiv(N, BLOCK_N))
-        _gemm_kernel_tile[grid](
-            a, b, c,
-            M, N, K,
-            a.stride(0), a.stride(1),
-            b.stride(0), b.stride(1),
-            c.stride(0), c.stride(1),
-            BLOCK_M=BLOCK_M, BLOCK_N=BLOCK_N, BLOCK_K=BLOCK_K,
-        )
-        return c
+    grid = (triton.cdiv(M, BLOCK_M), triton.cdiv(N, BLOCK_N))
+    _gemm_kernel[grid](
+        a, b, c,
+        M, N, K,
+        a.stride(0), a.stride(1),
+        b.stride(0), b.stride(1),
+        c.stride(0), c.stride(1),
+        BLOCK_M=BLOCK_M, BLOCK_N=BLOCK_N, BLOCK_K=BLOCK_K,
+    )
+    return c

@@ -1,6 +1,6 @@
 """Benchmark gemm across torch / triton / cuda backends.
 
-Run:  python benchmarks/gemm/bench_gemm.py --device cuda:0
+Run:  python benchmarks/gemm/bench_gemm.py --device cuda
 """
 
 import argparse
@@ -53,12 +53,6 @@ def _bind_b(impl):
     return call
 
 
-def _bind_b_with(impl, **kwargs):
-    def call(a: torch.Tensor) -> torch.Tensor:
-        return impl(a, _B, **kwargs)
-    return call
-
-
 def _backends() -> dict:
     backends: dict = {}
 
@@ -72,8 +66,7 @@ def _backends() -> dict:
 
     try:
         from inference_kernel.kernels.gemm.naive.triton_impl import gemm as gemm_triton
-        backends["triton_thread"] = _bind_b_with(gemm_triton, kernel_implementation="thread")
-        backends["triton_tile"] = _bind_b_with(gemm_triton, kernel_implementation="tile")
+        backends["triton"] = _bind_b(gemm_triton)
     except ImportError as e:
         print(f"  [skip] triton import failed: {e}")
 
@@ -94,7 +87,7 @@ def _backends() -> dict:
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--device", default="cuda:0")
+    p.add_argument("--device", default="cuda")
     args = p.parse_args()
     device = torch.device(args.device)
     if device.type == "cuda" and not torch.cuda.is_available():
