@@ -1,6 +1,6 @@
 """Benchmark silu across torch / triton / cuda backends.
 
-Run:  python benchmarks/activation/bench_silu.py --device cuda
+Run:  uv run python3 benchmarks/activation/bench_silu.py --device cuda
 """
 
 import argparse

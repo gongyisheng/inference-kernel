@@ -1,6 +1,6 @@
 """Benchmark gemm across torch / triton / cuda backends.
 
-Run:  python benchmarks/gemm/bench_gemm.py --device cuda
+Run:  uv run python3 benchmarks/gemm/bench_gemm.py --device cuda
 """
 
 import argparse
