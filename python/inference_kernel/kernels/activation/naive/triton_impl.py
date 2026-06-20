@@ -1,10 +1,3 @@
-"""Triton implementations of activation kernels.
-
-Each entry point ships with its own @triton.jit kernel; element-wise
-activations use a 1-D flat grid. Compute happens in fp32 for predictable
-half/bf16 precision, then casts back on store.
-"""
-
 import torch
 import triton
 import triton.language as tl
