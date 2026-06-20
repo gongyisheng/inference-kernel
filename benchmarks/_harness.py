@@ -160,6 +160,8 @@ def run_bench(
     output_csv.parent.mkdir(parents=True, exist_ok=True)
 
     if device.type == "cuda":
+        if device.index is None:
+            device = torch.device("cuda", torch.cuda.current_device())
         torch.cuda.set_device(device)
 
     for shape in shapes:
