@@ -4,7 +4,15 @@ import triton.language as tl
 
 from inference_kernel._common.utils import assert_contiguous, assert_is_cuda
 
+_CONFIGS = [
+    triton.Config({"BLOCK_SIZE": bs}, num_warps=w, num_stages=s)
+    for bs in (256, 512, 1024, 2048, 4096)
+    for w in (2, 4, 8)
+    for s in (2, 3, 4)
+]
 
+
+@triton.autotune(configs=_CONFIGS, key=["n_elements"])
 @triton.jit
 def _relu_kernel(
     x_ptr,
@@ -25,12 +33,12 @@ def relu(x: torch.Tensor) -> torch.Tensor:
     assert_contiguous(x)
     y = torch.empty_like(x)
     n = x.numel()
-    BLOCK_SIZE = 1024
-    grid = (triton.cdiv(n, BLOCK_SIZE),)
-    _relu_kernel[grid](x, y, n, BLOCK_SIZE)
+    grid = lambda meta: (triton.cdiv(n, meta["BLOCK_SIZE"]),)
+    _relu_kernel[grid](x, y, n)
     return y
 
 
+@triton.autotune(configs=_CONFIGS, key=["n_elements"])
 @triton.jit
 def _silu_kernel(
     x_ptr,
@@ -51,7 +59,6 @@ def silu(x: torch.Tensor) -> torch.Tensor:
     assert_contiguous(x)
     y = torch.empty_like(x)
     n = x.numel()
-    BLOCK_SIZE = 1024
-    grid = (triton.cdiv(n, BLOCK_SIZE),)
-    _silu_kernel[grid](x, y, n, BLOCK_SIZE=BLOCK_SIZE)
+    grid = lambda meta: (triton.cdiv(n, meta["BLOCK_SIZE"]),)
+    _silu_kernel[grid](x, y, n)
     return y
