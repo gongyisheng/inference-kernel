@@ -1,4 +1,4 @@
-"""CUDA gemm correctness vs torch eager reference (also smoke-tests the JIT loader)."""
+"""CUDA (naive tier) gemm correctness vs ref eager reference (also smoke-tests the JIT loader)."""
 
 import pytest
 import torch
