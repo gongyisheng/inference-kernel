@@ -2,9 +2,31 @@ import torch
 import triton
 import triton.language as tl
 
-from inference_kernel._common.utils import assert_contiguous, assert_same_device, assert_same_dtype
+from inference_kernel._common.utils import assert_is_cuda, assert_contiguous, assert_same_device, assert_same_dtype
 
 
+def _gemm_configs():
+    shapes = [
+        (64, 64, 32), (64, 128, 32), (128, 64, 32),
+        (128, 128, 32), (128, 128, 64),
+        (128, 256, 64), (256, 128, 64),
+    ]
+    configs = []
+    for block_m, block_n, block_k in shapes:
+        for num_stages in (3, 4):
+            num_warps = 8 if block_m * block_n >= 128 * 128 else 4
+            configs.append(
+                triton.Config(
+                    {"BLOCK_M": block_m, "BLOCK_N": block_n, "BLOCK_K": block_k},
+                    num_stages=num_stages,
+                    num_warps=num_warps,
+                )
+            )
+    return configs
+
+
+@triton.autotune(configs=_gemm_configs(), key=["M", "N", "K"])
+@triton.heuristics({"EVEN_K": lambda args: args["K"] % args["BLOCK_K"] == 0})
 @triton.jit
 def _gemm_kernel(
     a_ptr, b_ptr, c_ptr,
@@ -15,6 +37,7 @@ def _gemm_kernel(
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
     BLOCK_K: tl.constexpr,
+    EVEN_K: tl.constexpr,
 ):
     pid_m = tl.program_id(axis=0)
     pid_n = tl.program_id(axis=1)
@@ -26,22 +49,27 @@ def _gemm_kernel(
 
     acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
     for k in range(0, K, BLOCK_K):
-        mask_a = (offset_m[:, None] < M) & (offset_k[None, :] + k < K)
-        mask_b = (offset_k[:, None] + k < K) & (offset_n[None, :] < N)
-        a = tl.load(a_base_ptr, mask=mask_a, other=0.0)
-        b = tl.load(b_base_ptr, mask=mask_b, other=0.0)
+        if EVEN_K:
+            a = tl.load(a_base_ptr, mask=offset_m[:, None] < M, other=0.0)
+            b = tl.load(b_base_ptr, mask=offset_n[None, :] < N, other=0.0)
+        else:
+            mask_a = (offset_m[:, None] < M) & (offset_k[None, :] + k < K)
+            mask_b = (offset_k[:, None] + k < K) & (offset_n[None, :] < N)
+            a = tl.load(a_base_ptr, mask=mask_a, other=0.0)
+            b = tl.load(b_base_ptr, mask=mask_b, other=0.0)
         acc += tl.dot(a, b, input_precision="ieee")
         a_base_ptr += BLOCK_K * stride_ak
         b_base_ptr += BLOCK_K * stride_bk
-    
+
     c_base_ptr = c_ptr + offset_m[:, None] * stride_cm + offset_n[None, :] * stride_cn
     mask_c = (offset_m[:, None] < M) & (offset_n[None, :] < N)
     tl.store(c_base_ptr, acc.to(c_ptr.dtype.element_ty), mask=mask_c)
 
 
 def gemm(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-    assert_contiguous(a)
-    assert_contiguous(b)
+    assert a.dim() == 2 and b.dim() == 2, "gemm expects 2D inputs"
+    assert_is_cuda(a, b)
+    assert_contiguous(a, b)
     device = assert_same_device(a, b)
     dtype = assert_same_dtype(a, b)
     M, K1 = a.shape
@@ -50,16 +78,12 @@ def gemm(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     K = K1
 
     c = torch.empty((M, N), device=device, dtype=dtype)
-    BLOCK_M = 128
-    BLOCK_N = 128
-    BLOCK_K = 32
-    grid = (triton.cdiv(M, BLOCK_M), triton.cdiv(N, BLOCK_N))
+    grid = lambda meta: (triton.cdiv(M, meta["BLOCK_M"]), triton.cdiv(N, meta["BLOCK_N"]))
     _gemm_kernel[grid](
         a, b, c,
         M, N, K,
         a.stride(0), a.stride(1),
         b.stride(0), b.stride(1),
         c.stride(0), c.stride(1),
-        BLOCK_M, BLOCK_N, BLOCK_K
     )
     return c
