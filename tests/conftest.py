@@ -71,6 +71,16 @@ assert_close_for_silu = assert_close_common
 assert_close_for_relu = assert_close_common
 
 
+def assert_close_for_attention(actual: torch.Tensor, expected: torch.Tensor, dtype: torch.dtype) -> None:
+    """allclose with looser tolerances for attention's two-matmul + softmax error.
+
+    Attention does QK^T (reduces over head_dim) then PV (reduces over seq_len),
+    with a softmax between. Error compounds across both reductions, so tolerances
+    track GEMM's rather than the per-element helper's.
+    """
+    assert_close_for_gemm(actual, expected, dtype)
+
+
 def assert_close_for_gemm(actual: torch.Tensor, expected: torch.Tensor, dtype: torch.dtype) -> None:
     """allclose with looser tolerances tuned for GEMM accumulation error.
 
