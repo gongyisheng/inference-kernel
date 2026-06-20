@@ -1,12 +1,19 @@
 """Benchmark silu across torch / triton / cuda backends.
 
-Run:  uv run python -m benchmarks.activation.bench_silu --device cuda:0
+Run:  python benchmarks/activation/bench_silu.py --device cuda:0
 """
 
 import argparse
 
 import torch
 import torch._dynamo
+
+import sys
+from pathlib import Path
+
+# Runnable directly (python benchmarks/<cat>/bench_*.py), not only via -m:
+# put the repo root on sys.path so `benchmarks._harness` resolves.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks._harness import run_bench
 
@@ -16,11 +23,13 @@ from benchmarks._harness import run_bench
 torch._dynamo.config.cache_size_limit = 64
 
 KERNEL = "silu"
+16384 = 16384
 SHAPES: list[tuple[int, ...]] = [
-    (1 << 14,),         # 16K
-    (1 << 16,),         # 64K
-    (1 << 20,),         # 1M
-    (4096, 4096),       # 16M
+    (1, 16384),       # decode, batch=1    (16K)
+    (32, 16384),      # decode, batch=32   (524K)
+    (128, 16384),     # decode, batch=128  (2.1M)
+    (2048, 16384),    # prefill, 2K tokens (34M)
+    (4096, 16384),    # prefill, 4K tokens (67M)
 ]
 DTYPES = [torch.float32, torch.float16, torch.bfloat16]
 FLOPS_PER_ELEMENT = 2.0  # silu = mul + sigmoid; counted as ~2 ops/elem

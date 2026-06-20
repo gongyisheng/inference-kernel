@@ -1,12 +1,19 @@
 """Benchmark relu across torch / triton / cuda backends.
 
-Run:  uv run python -m benchmarks.activation.bench_relu --device cuda:0
+Run:  uv run python benchmarks/activation/bench_relu.py --device cuda:0
 """
 
 import argparse
 
 import torch
 import torch._dynamo
+
+import sys
+from pathlib import Path
+
+# Runnable directly (python benchmarks/<cat>/bench_*.py), not only via -m:
+# put the repo root on sys.path so `benchmarks._harness` resolves.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks._harness import run_bench
 
@@ -17,13 +24,15 @@ torch._dynamo.config.cache_size_limit = 64
 
 KERNEL = "relu"
 SHAPES: list[tuple[int, ...]] = [
-    (1 << 14,),         # 16K
-    (1 << 16,),         # 64K
-    (1 << 20,),         # 1M
-    (4096, 4096),       # 16M
+    (1, 16384),       # decode, batch=1    (16K)
+    (32, 16384),      # decode, batch=32   (524K)
+    (128, 16384),     # decode, batch=128  (2.1M)
+    (2048, 16384),    # prefill, 2K tokens (34M)
+    (4096, 16384),    # prefill, 4K tokens (67M)
 ]
 DTYPES = [torch.float32, torch.float16, torch.bfloat16]
-FLOPS_PER_ELEMENT = 1.0  # relu
+FLOPS_PER_ELEMENT = 1.0
+IO_PER_ELEMENT = 2.0
 
 
 def _backends() -> dict:
@@ -37,15 +46,21 @@ def _backends() -> dict:
 
     try:
         from inference_kernel.kernels.activation.naive.triton_impl import relu as relu_triton
-        backends["triton"] = relu_triton
+        backends["triton_naive"] = relu_triton
     except ImportError as e:
         print(f"  [skip] triton import failed: {e}")
 
     try:
         from inference_kernel.kernels.activation.naive.cuda_impl import relu as relu_cuda
-        backends["cuda"] = relu_cuda
+        backends["cuda_naive"] = relu_cuda
     except ImportError as e:
         print(f"  [skip] cuda import failed: {e}")
+
+    try:
+        from inference_kernel.kernels.activation.opt.triton_impl import relu as relu_triton_opt
+        backends["triton_opt"] = relu_triton_opt  # @triton.autotune picks the config
+    except ImportError as e:
+        print(f"  [skip] triton opt import failed: {e}")
 
     try:
         from inference_kernel.kernels.activation.opt.cuda_impl import relu as relu_cuda_opt
@@ -76,6 +91,7 @@ def main() -> None:
         dtypes=DTYPES,
         device=device,
         flops_per_element=FLOPS_PER_ELEMENT,
+        io_factor=IO_PER_ELEMENT,
     )
 
 

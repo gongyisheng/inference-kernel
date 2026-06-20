@@ -29,6 +29,7 @@ class BenchRow:
     device: str
     ms: float
     tflops: float | None
+    gbps: float | None
     git_sha: str
 
 
@@ -43,10 +44,13 @@ def _git_sha() -> str:
 
 
 def _time_gpu(fn: Callable[[], torch.Tensor]) -> float:
-    """Median ms via triton.testing.do_bench."""
+    """
+    Mean ms via triton.testing.do_bench 
+    warmup/rep are milliseconds.
+    """
     import triton.testing  # type: ignore
 
-    return float(triton.testing.do_bench(fn, warmup=25, rep=100))
+    return float(triton.testing.do_bench(fn, warmup=50, rep=300))
 
 
 def _time_cpu(fn: Callable[[], torch.Tensor]) -> float:
@@ -88,7 +92,7 @@ def plot_results(
     kernel = rows[0].kernel
     device = rows[0].device
 
-    fig, axes = plt.subplots(1, len(dtypes), figsize=(5 * len(dtypes), 4), squeeze=False)
+    fig, axes = plt.subplots(1, len(dtypes), figsize=(5.5 * len(dtypes), 4.5), squeeze=False)
     for i, dtype in enumerate(dtypes):
         ax = axes[0, i]
         for backend in backends:
@@ -100,17 +104,20 @@ def plot_results(
                 continue
             xs = [x_axis(r.shape) for r in series]
             ys = [r.ms for r in series]
-            ax.plot(xs, ys, marker="o", label=backend)
+            ax.plot(xs, ys, marker="o", markersize=3, linewidth=1, label=backend)
         ax.set_xscale("log")
         ax.set_yscale("log")
         ax.set_xlabel(x_label)
         ax.set_ylabel("ms (median)")
         ax.set_title(f"dtype={dtype}")
         ax.grid(True, which="both", alpha=0.3)
-        ax.legend()
 
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    ncol = min(len(labels), 5)
+    fig.legend(handles, labels, loc="lower center", ncol=ncol, fontsize="small", frameon=False)
     fig.suptitle(f"{kernel} — backend comparison ({device})")
-    fig.tight_layout()
+    legend_rows = (len(labels) + ncol - 1) // ncol
+    fig.tight_layout(rect=(0, 0.04 + 0.03 * legend_rows, 1, 1))
     output_png.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_png, dpi=120)
     plt.close(fig)
@@ -125,6 +132,7 @@ def run_bench(
     dtypes: list[torch.dtype],
     device: torch.device,
     flops_per_element: float | None = None,
+    io_factor: float | None = None,
     output_csv: Path | None = None,
     output_png: Path | None = None,
     x_axis: Callable[[tuple[int, ...]], int] = _numel,
@@ -139,6 +147,9 @@ def run_bench(
             first invocation (e.g. triton/cuda on a CPU-only host).
         make_input: builds an input tensor for a given (shape, dtype, device).
         flops_per_element: if provided, used to compute TFLOPS; else None.
+        io_factor: element-sized memory passes over the data (e.g. 2 = one
+            read + one write). If provided, used to compute GB/s — the
+            meaningful metric for memory-bound kernels like relu; else None.
         output_csv: defaults to results/<kernel>.csv.
         output_png: defaults to results/<kernel>.png.
     """
@@ -173,6 +184,10 @@ def run_bench(
                 tflops = None
                 if flops_per_element is not None:
                     tflops = (flops_per_element * _numel(shape)) / (ms * 1e-3) / 1e12
+                gbps = None
+                if io_factor is not None:
+                    bytes_moved = io_factor * _numel(shape) * x.element_size()
+                    gbps = bytes_moved / (ms * 1e-3) / 1e9
                 row = BenchRow(
                     kernel=kernel,
                     backend=backend_name,
@@ -181,24 +196,27 @@ def run_bench(
                     device=str(device),
                     ms=ms,
                     tflops=tflops,
+                    gbps=gbps,
                     git_sha=sha,
                 )
                 rows.append(row)
-                tflops_str = f"{tflops:.2f}" if tflops is not None else ""
+                tflops_str = f"{tflops:.4f}" if tflops is not None else ""
+                gbps_str = f"{gbps:.1f}" if gbps is not None else ""
                 print(
-                    f"  {kernel:10s} {backend_name:14s} shape={shape!s:20s} "
-                    f"dtype={row.dtype:8s} ms={ms:8.4f} tflops={tflops_str}"
+                    f"  {kernel:10s} {backend_name:20s} shape={shape!s:20s} "
+                    f"dtype={row.dtype:8s} ms={ms:8.4f} tflops={tflops_str:8s} gbps={gbps_str}"
                 )
 
     with output_csv.open("w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(
-            ["kernel", "backend", "shape", "dtype", "device", "ms", "tflops", "git_sha"]
+            ["kernel", "backend", "shape", "dtype", "device", "ms", "tflops", "gbps", "git_sha"]
         )
         for r in rows:
             writer.writerow(
                 [r.kernel, r.backend, str(r.shape), r.dtype, r.device, f"{r.ms:.6f}",
-                 "" if r.tflops is None else f"{r.tflops:.6f}", r.git_sha]
+                 "" if r.tflops is None else f"{r.tflops:.6f}",
+                 "" if r.gbps is None else f"{r.gbps:.3f}", r.git_sha]
             )
     print(f"wrote {len(rows)} rows to {output_csv}")
 

@@ -1,11 +1,18 @@
 """Benchmark gemm across torch / triton / cuda backends.
 
-Run:  uv run python -m benchmarks.gemm.bench_gemm --device cuda:0
+Run:  python benchmarks/gemm/bench_gemm.py --device cuda:0
 """
 
 import argparse
 
 import torch
+
+import sys
+from pathlib import Path
+
+# Runnable directly (python benchmarks/<cat>/bench_*.py), not only via -m:
+# put the repo root on sys.path so `benchmarks._harness` resolves.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks._harness import run_bench
 
