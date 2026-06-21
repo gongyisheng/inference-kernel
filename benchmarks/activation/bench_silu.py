@@ -23,7 +23,6 @@ from benchmarks._harness import run_bench
 torch._dynamo.config.cache_size_limit = 64
 
 KERNEL = "silu"
-16384 = 16384
 SHAPES: list[tuple[int, ...]] = [
     (1, 16384),       # decode, batch=1    (16K)
     (32, 16384),      # decode, batch=32   (524K)
@@ -33,6 +32,7 @@ SHAPES: list[tuple[int, ...]] = [
 ]
 DTYPES = [torch.float32, torch.float16, torch.bfloat16]
 FLOPS_PER_ELEMENT = 2.0  # silu = mul + sigmoid; counted as ~2 ops/elem
+IO_PER_ELEMENT = 2.0  # one read + one write
 
 
 def _backends() -> dict:
@@ -87,6 +87,7 @@ def main() -> None:
         dtypes=DTYPES,
         device=device,
         flops_per_element=FLOPS_PER_ELEMENT,
+        io_factor=IO_PER_ELEMENT,
     )
 
 

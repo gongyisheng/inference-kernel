@@ -21,3 +21,14 @@
         return false;                                                 \
     }                                                                 \
   }()
+
+// Tensor-core inputs only: fp16 / bf16 (no fp32).
+#define DISPATCH_HALF_TYPES(scalar_type, c_type, ...)                 \
+  [&]() -> bool {                                                     \
+    switch (scalar_type) {                                            \
+      _IK_DISPATCH_CASE(Half, __half, c_type, __VA_ARGS__)            \
+      _IK_DISPATCH_CASE(BFloat16, __nv_bfloat16, c_type, __VA_ARGS__) \
+      default:                                                        \
+        return false;                                                 \
+    }                                                                 \
+  }()

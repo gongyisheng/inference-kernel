@@ -2,59 +2,98 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_bf16.h>
+#include <mma.h>
 
 #include "dispatch.h"
 #include "cast.cuh"
 
-template <typename scalar_t, int BLOCK_K>
-__global__ void gemm_kernel_thread(
+using namespace nvcuda;
+
+// WM/WN/WK are the WMMA fragment shape (must be a hardware-supported combo,
+// e.g. 16x16x16); passed as template params so they're compile-time constants.
+template <typename scalar_t, int BLOCK_M, int BLOCK_N, int WM, int WN, int WK>
+__global__ void wmma_gemm_kernel(
     const scalar_t* __restrict__ a,
     const scalar_t* __restrict__ b,
     scalar_t* __restrict__ c,
-    int64_t K,
+    int64_t M, int64_t N, int64_t K,
     int64_t stride_am, int64_t stride_ak,
     int64_t stride_bk, int64_t stride_bn,
     int64_t stride_cm, int64_t stride_cn
 ){
-    const int64_t m = blockIdx.x;
-    const int64_t n = blockIdx.y;
-    const int tid = threadIdx.x;
-    const int n_thread = blockDim.x;
+    // warp index in block
+    const int warp_m = threadIdx.y;
+    const int warp_n = threadIdx.x / 32;
+    // tile's top-left element in the block
+    const int tile_m = warp_m * WM;
+    const int tile_n = warp_n * WN;
+    // tile's top-left element in the global matrix (a/b/c)
+    const int global_m = blockIdx.y * BLOCK_M + tile_m;
+    const int global_n = blockIdx.x * BLOCK_N + tile_n;
 
-    const scalar_t* a_row = a + m * stride_am;
-    const scalar_t* b_col = b + n * stride_bn;
-    scalar_t* c_out = c + m * stride_cm + n * stride_cn;
+    wmma::fragment<wmma::matrix_a, WM, WN, WK, scalar_t, wmma::row_major> a_frag;
+    wmma::fragment<wmma::matrix_b, WM, WN, WK, scalar_t, wmma::row_major> b_frag;
+    wmma::fragment<wmma::accumulator, WM, WN, WK, float> acc;
+    wmma::fill_fragment(acc, 0.0f);
 
-    // block reduce sum
-    extern __shared__ float sdata[];
-    float acc = 0.0f;
-    for (int64_t k0 = 0; k0 < K; k0 += BLOCK_K) {
-        const int64_t k = k0 + tid;
-        if (k < K) {
-            const float a_val = to_float(a_row[k * stride_ak]);
-            const float b_val = to_float(b_col[k * stride_bk]);
-            acc += a_val * b_val;
-        }
+    for (int k = 0; k < K; k += WK) {
+        wmma::load_matrix_sync(a_frag, a + global_m * stride_am + k * stride_ak, stride_am);
+        wmma::load_matrix_sync(b_frag, b + k * stride_bk + global_n * stride_bn, stride_bk);
+        wmma::mma_sync(acc, a_frag, b_frag, acc);
     }
-    sdata[tid] = acc;
-    __syncthreads();
 
-    for (int s = n_thread / 2; s >=32; s >>= 1) {
-        if (tid < s) sdata[tid] += sdata[tid + s];
+    // store_matrix_sync only emits fp32, so stage this warp's tile in shared
+    // memory, then convert fp32 -> scalar_t while writing back the valid region.
+    __shared__ float c_tile[BLOCK_M][BLOCK_N];
+    wmma::store_matrix_sync(&c_tile[tile_m][tile_n], acc, BLOCK_N, wmma::mem_row_major);
+
+    const int lane = threadIdx.x % 32;
+    for (int i = lane; i < WM * WN; i += 32) {
+        const int frag_m = i / WN, frag_n = i % WN;   // element inside the warp's tile
+        if (global_m + frag_m < M && global_n + frag_n < N)
+            c[(global_m + frag_m) * stride_cm + (global_n + frag_n) * stride_cn] =
+                from_float<scalar_t>(c_tile[tile_m + frag_m][tile_n + frag_n]);
+    }
+}
+
+// Generic SIMT fallback: fp32 accumulate, bounds-checked, one thread per output
+// element. Handles any dtype (fp32/fp16/bf16) and any M/N/K. Correct but slow.
+template <typename scalar_t, int BLOCK_M, int BLOCK_N, int BLOCK_K>
+__global__ void gemm_simt_kernel(
+    const scalar_t* __restrict__ a,
+    const scalar_t* __restrict__ b,
+    scalar_t* __restrict__ c,
+    int64_t M, int64_t N, int64_t K,
+    int64_t stride_am, int64_t stride_ak,
+    int64_t stride_bk, int64_t stride_bn,
+    int64_t stride_cm, int64_t stride_cn
+){
+    __shared__ float a_tile[BLOCK_M][BLOCK_K];
+    __shared__ float b_tile[BLOCK_K][BLOCK_N];
+
+    const int ty = threadIdx.y, tx = threadIdx.x;   // 0..BLOCK_M-1, 0..BLOCK_N-1
+    const int global_m = blockIdx.y * BLOCK_M + ty;
+    const int global_n = blockIdx.x * BLOCK_N + tx;
+
+    float acc = 0.0f;
+    for (int k0 = 0; k0 < K; k0 += BLOCK_K) {
+        if (tx < BLOCK_K) {
+            const int gk = k0 + tx;
+            a_tile[ty][tx] = (global_m < M && gk < K) ? to_float(a[global_m * stride_am + gk * stride_ak]) : 0.0f;
+        }
+        if (ty < BLOCK_K) {
+            const int gk = k0 + ty;
+            b_tile[ty][tx] = (gk < K && global_n < N) ? to_float(b[gk * stride_bk + global_n * stride_bn]) : 0.0f;
+        }
+        __syncthreads();
+
+        for (int k = 0; k < BLOCK_K; ++k)
+            acc += a_tile[ty][k] * b_tile[k][tx];
         __syncthreads();
     }
 
-    if (tid < 32) {
-        // Everyone: look at the person at position (your_id+offset), copy their number, and add it to yours.
-        float v = sdata[tid];
-        #pragma unroll
-        for (int offset = 16; offset > 0; offset >>= 1) {
-            v += __shfl_down_sync(0xffffffff, v, offset);
-        }
-        if (tid == 0) {
-            *c_out = from_float<scalar_t>(v);
-        }
-    }
+    if (global_m < M && global_n < N)
+        c[global_m * stride_cm + global_n * stride_cn] = from_float<scalar_t>(acc);
 }
 
 void gemm(
@@ -62,26 +101,50 @@ void gemm(
     torch::Tensor a,
     torch::Tensor b
 ){
-    // Input validation lives on the Python side (see gemm/naive/cuda_impl.py).
     const int64_t M = a.size(0);
     const int64_t N = b.size(1);
     const int64_t K = a.size(1);
 
-    constexpr int BLOCK_K = 128;
-    const dim3 grid(M, N);
-    const dim3 block(BLOCK_K);
-    const size_t smem = BLOCK_K * sizeof(float);
+    const auto dtype = a.scalar_type();
+    const bool is_half = (dtype == at::ScalarType::Half || dtype == at::ScalarType::BFloat16);
 
-    const bool ok = DISPATCH_FLOATING_TYPES(a.scalar_type(), c_type, [&] {
-        gemm_kernel_thread<c_type, BLOCK_K><<<grid, block, smem>>>(
-            static_cast<const c_type*>(a.data_ptr()),
-            static_cast<const c_type*>(b.data_ptr()),
-            static_cast<c_type*>(out.data_ptr()), K,
-            a.stride(0), a.stride(1),
-            b.stride(0), b.stride(1),
-            out.stride(0), out.stride(1)
-        );
-        return true;
-    });
-    TORCH_CHECK(ok, "[gemm] unsupported dtype: ", a.scalar_type());
+    constexpr int WM = 16, WN = 16, WK = 16;   // WMMA fragment shape
+
+    bool ok;
+    if (is_half && K % WK == 0) {
+        // Tensor-core fast path: fp16/bf16 with K aligned to the fragment depth.
+        constexpr int BLOCK_M = 64, BLOCK_N = 64;
+        const dim3 grid((N + BLOCK_N - 1) / BLOCK_N, (M + BLOCK_M - 1) / BLOCK_M);
+        const dim3 block(128, 4);  // 16 warps -> one 64x64 C tile
+        ok = DISPATCH_HALF_TYPES(dtype, c_type, [&] {
+            wmma_gemm_kernel<c_type, BLOCK_M, BLOCK_N, WM, WN, WK><<<grid, block>>>(
+                static_cast<const c_type*>(a.data_ptr()),
+                static_cast<const c_type*>(b.data_ptr()),
+                static_cast<c_type*>(out.data_ptr()),
+                M, N, K,
+                a.stride(0), a.stride(1),
+                b.stride(0), b.stride(1),
+                out.stride(0), out.stride(1)
+            );
+            return true;
+        });
+    } else {
+        // Universal fallback: fp32, or any shape the WMMA path can't handle.
+        constexpr int BLOCK_M = 16, BLOCK_N = 16, BLOCK_K = 16;
+        const dim3 grid((N + BLOCK_N - 1) / BLOCK_N, (M + BLOCK_M - 1) / BLOCK_M);
+        const dim3 block(BLOCK_N, BLOCK_M);
+        ok = DISPATCH_FLOATING_TYPES(dtype, c_type, [&] {
+            gemm_simt_kernel<c_type, BLOCK_M, BLOCK_N, BLOCK_K><<<grid, block>>>(
+                static_cast<const c_type*>(a.data_ptr()),
+                static_cast<const c_type*>(b.data_ptr()),
+                static_cast<c_type*>(out.data_ptr()),
+                M, N, K,
+                a.stride(0), a.stride(1),
+                b.stride(0), b.stride(1),
+                out.stride(0), out.stride(1)
+            );
+            return true;
+        });
+    }
+    TORCH_CHECK(ok, "[gemm] unsupported dtype: ", dtype);
 }

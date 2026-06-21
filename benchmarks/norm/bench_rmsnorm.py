@@ -40,6 +40,7 @@ DTYPES = [torch.float32, torch.float16, torch.bfloat16]
 # RMSNorm per element: x*x (1) + reduction add (1) + rstd*x (1) + *w (1) ≈ 4-5 FLOPs.
 # Memory-bound in practice; TFLOPS is informational.
 FLOPS_PER_ELEMENT = 5.0
+IO_PER_ELEMENT = 2.0  # one read + one write; weight reread is negligible
 
 _WEIGHT_CACHE: dict[tuple, torch.Tensor] = {}
 
@@ -123,6 +124,7 @@ def main() -> None:
         dtypes=DTYPES,
         device=device,
         flops_per_element=FLOPS_PER_ELEMENT,
+        io_factor=IO_PER_ELEMENT,
         x_axis=lambda s: s[-1],
         x_label="hidden_dim",
     )
