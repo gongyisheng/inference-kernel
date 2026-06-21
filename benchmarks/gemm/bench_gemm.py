@@ -4,11 +4,11 @@ Run:  uv run python3 benchmarks/gemm/bench_gemm.py --device cuda
 """
 
 import argparse
+import sys
+from pathlib import Path
 
 import torch
 
-import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks._harness import run_bench
@@ -78,6 +78,19 @@ def _backends() -> dict:
         backends["cuda_opt"] = _bind_b(gemm_cuda_opt)
     except ImportError:
         pass  # no opt kernel yet
+
+    # Per-generation tensor-core kernels (bf16 + tile-aligned only; the harness
+    # skips the rows they don't support). wgmma is Hopper-only, so on Blackwell
+    # every cuda_wgmma row skips with a clear "requires sm_90" message.
+    try:
+        from inference_kernel.kernels.gemm.naive.cuda_impl import (
+            gemm_tcgen05,
+            gemm_wgmma,
+        )
+        backends["cuda_wgmma"] = _bind_b(gemm_wgmma)
+        backends["cuda_tcgen05"] = _bind_b(gemm_tcgen05)
+    except ImportError:
+        pass
 
     return backends
 
