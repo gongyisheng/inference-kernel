@@ -58,6 +58,7 @@ def load_kernel(
     sources: list[str],
     extra_cuda_cflags: list[str] | None = None,
     extra_cflags: list[str] | None = None,
+    extra_ldflags: list[str] | None = None,
 ) -> ModuleType:
     """Return the compiled extension module for a kernel.
 
@@ -69,6 +70,8 @@ def load_kernel(
         sources: filenames inside the csrc dir, e.g. ["silu.cu", "binding.cpp"].
         extra_cuda_cflags: extra nvcc flags for JIT mode.
         extra_cflags: extra C++ flags for JIT mode.
+        extra_ldflags: extra linker flags for JIT mode (e.g. ["-lcuda"] for
+            kernels that call the CUDA driver API such as cuTensorMapEncodeTiled).
     """
     aot_name = f"{package}._ext"
     try:
@@ -94,5 +97,6 @@ def load_kernel(
         extra_include_paths=[str(csrc_dir.parent / "include")],
         extra_cuda_cflags=extra_cuda_cflags or ["-O3", "--use_fast_math"],
         extra_cflags=extra_cflags or ["-O3", "-std=c++17"],
+        extra_ldflags=extra_ldflags,
         verbose=False,
     )
