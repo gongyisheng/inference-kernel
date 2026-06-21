@@ -12,7 +12,7 @@ using namespace nvcuda;
 // WM/WN/WK are the WMMA fragment shape (must be a hardware-supported combo,
 // e.g. 16x16x16); passed as template params so they're compile-time constants.
 template <typename scalar_t, int BLOCK_M, int BLOCK_N, int WM, int WN, int WK>
-__global__ void wmma_gemm_kernel(
+__global__ void gemm_wmma_kernel(
     const scalar_t* __restrict__ a,
     const scalar_t* __restrict__ b,
     scalar_t* __restrict__ c,
@@ -117,7 +117,7 @@ void gemm(
         const dim3 grid((N + BLOCK_N - 1) / BLOCK_N, (M + BLOCK_M - 1) / BLOCK_M);
         const dim3 block(128, 4);  // 16 warps -> one 64x64 C tile
         ok = DISPATCH_HALF_TYPES(dtype, c_type, [&] {
-            wmma_gemm_kernel<c_type, BLOCK_M, BLOCK_N, WM, WN, WK><<<grid, block>>>(
+            gemm_wmma_kernel<c_type, BLOCK_M, BLOCK_N, WM, WN, WK><<<grid, block>>>(
                 static_cast<const c_type*>(a.data_ptr()),
                 static_cast<const c_type*>(b.data_ptr()),
                 static_cast<c_type*>(out.data_ptr()),

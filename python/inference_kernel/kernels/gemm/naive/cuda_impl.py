@@ -6,7 +6,7 @@ from inference_kernel._common.utils import assert_is_cuda, assert_contiguous, as
 # Import for its registration side effect; ops are called via torch.ops below.
 load_kernel(
     package="inference_kernel.kernels.gemm",
-    sources=["naive/gemm.cu", "binding.cpp"],
+    sources=["naive/gemm.cu", "opt/gemm_opt.cu", "binding.cpp"],
 )
 
 
