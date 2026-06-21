@@ -26,13 +26,6 @@ DTYPES = [torch.float32, torch.float16, torch.bfloat16]
 # C = A @ B is 2*M*N*K FLOPs total. The harness multiplies FLOPS_PER_ELEMENT
 # by prod(shape) = M*K*N, so 2.0 yields the correct total.
 FLOPS_PER_ELEMENT = 2.0
-# Effective global-memory traffic of the *naive WMMA* kernel, which stages
-# nothing in shared memory: each 16x16x16 MMA reloads two 16x16 fragments and
-# there are (M/16)(N/16)(K/16) of them -> M*N*K/8 elements moved. The harness
-# computes io_factor * M*N*K * element_size, so 1/8 reproduces that.
-# Physically meaningful ONLY for the `cuda` backend; cuBLAS/Triton reuse
-# operands via shared memory, so their reported GB/s is a model artifact.
-IO_FACTOR = 1.0 / 8.0
 _B: torch.Tensor | None = None
 
 
@@ -98,7 +91,6 @@ def main() -> None:
         dtypes=DTYPES,
         device=device,
         flops_per_element=FLOPS_PER_ELEMENT,
-        io_factor=IO_FACTOR,
         x_axis=lambda s: s[0],
         x_label="size (M=K=N)",
     )

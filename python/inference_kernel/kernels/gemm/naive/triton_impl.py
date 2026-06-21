@@ -26,7 +26,6 @@ def _gemm_configs():
 
 
 @triton.autotune(configs=_gemm_configs(), key=["M", "N", "K"])
-@triton.heuristics({"EVEN_K": lambda args: args["K"] % args["BLOCK_K"] == 0})
 @triton.jit
 def _gemm_kernel(
     a_ptr, b_ptr, c_ptr,
@@ -37,7 +36,6 @@ def _gemm_kernel(
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
     BLOCK_K: tl.constexpr,
-    EVEN_K: tl.constexpr,
 ):
     pid_m = tl.program_id(axis=0)
     pid_n = tl.program_id(axis=1)
@@ -49,15 +47,11 @@ def _gemm_kernel(
 
     acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
     for k in range(0, K, BLOCK_K):
-        if EVEN_K:
-            a = tl.load(a_base_ptr, mask=offset_m[:, None] < M, other=0.0)
-            b = tl.load(b_base_ptr, mask=offset_n[None, :] < N, other=0.0)
-        else:
-            mask_a = (offset_m[:, None] < M) & (offset_k[None, :] + k < K)
-            mask_b = (offset_k[:, None] + k < K) & (offset_n[None, :] < N)
-            a = tl.load(a_base_ptr, mask=mask_a, other=0.0)
-            b = tl.load(b_base_ptr, mask=mask_b, other=0.0)
-        acc += tl.dot(a, b, input_precision="ieee")
+        mask_a = (offset_m[:, None] < M) & (offset_k[None, :] + k < K)
+        mask_b = (offset_k[:, None] + k < K) & (offset_n[None, :] < N)
+        frag_a = tl.load(a_base_ptr, mask=mask_a, other=0.0)
+        frag_b = tl.load(b_base_ptr, mask=mask_b, other=0.0)
+        acc += tl.dot(frag_a, frag_b, input_precision="ieee")
         a_base_ptr += BLOCK_K * stride_ak
         b_base_ptr += BLOCK_K * stride_bk
 
