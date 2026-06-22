@@ -69,6 +69,7 @@ def assert_close_common(actual: torch.Tensor, expected: torch.Tensor, dtype: tor
 assert_close_for_rmsnorm = assert_close_common
 assert_close_for_silu = assert_close_common
 assert_close_for_relu = assert_close_common
+assert_close_for_math = assert_close_common  # max/min/sum/softmax reductions
 
 
 def assert_close_for_attention(actual: torch.Tensor, expected: torch.Tensor, dtype: torch.dtype) -> None:
