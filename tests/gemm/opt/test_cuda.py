@@ -1,8 +1,8 @@
-"""CUDA (opt tier) register-blocked gemm correctness vs ref eager reference."""
+"""CUDA (opt tier) register-blocked gemm correctness vs torch reference."""
 
 import pytest
 import torch
-from inference_kernel.kernels.gemm.ref.eager_impl import gemm as gemm_ref
+from inference_kernel.kernels.gemm.ref.torch_impl import gemm as gemm_ref
 
 from tests.conftest import assert_close_for_gemm
 

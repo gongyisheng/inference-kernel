@@ -1,7 +1,7 @@
-"""Fast torch backend for norm kernels.
+"""Torch reference for norm kernels.
 
-Uses fused PyTorch ops where available. Correctness is verified against
-`eager_impl.py`.
+The correctness oracle for every other backend. Uses fused PyTorch ops
+where available.
 """
 
 import torch

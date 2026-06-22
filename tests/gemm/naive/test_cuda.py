@@ -1,8 +1,8 @@
-"""CUDA (naive tier) gemm correctness vs ref eager reference (also smoke-tests the JIT loader)."""
+"""CUDA (naive tier) gemm correctness vs torch reference (also smoke-tests the JIT loader)."""
 
 import pytest
 import torch
-from inference_kernel.kernels.gemm.ref.eager_impl import gemm as gemm_ref
+from inference_kernel.kernels.gemm.ref.torch_impl import gemm as gemm_ref
 
 from tests.conftest import assert_close_for_gemm
 

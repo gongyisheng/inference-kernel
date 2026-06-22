@@ -1,7 +1,7 @@
-"""Fast torch backend for activation kernels.
+"""Torch reference for activation kernels.
 
-Uses fused PyTorch ops where available. Correctness is verified against
-`eager_impl.py`.
+The correctness oracle for every other backend. Uses fused PyTorch ops
+where available.
 """
 
 import torch

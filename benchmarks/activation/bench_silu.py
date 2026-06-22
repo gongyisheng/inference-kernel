@@ -6,7 +6,6 @@ Run:  uv run python3 benchmarks/activation/bench_silu.py --device cuda
 import argparse
 
 import torch
-import torch._dynamo
 
 import sys
 from pathlib import Path
@@ -16,11 +15,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks._harness import run_bench
-
-# torch.compile caches per (shape, dtype) signature. Default cache size is 8;
-# we sweep 4 shapes x 3 dtypes = 12 combos, which would exceed the limit and
-# silently fall back to eager. Bump it so all combos stay compiled.
-torch._dynamo.config.cache_size_limit = 64
 
 KERNEL = "silu"
 SHAPES: list[tuple[int, ...]] = [
@@ -38,13 +32,8 @@ IO_PER_ELEMENT = 2.0  # one read + one write
 def _backends() -> dict:
     backends = {}
 
-    from inference_kernel.kernels.activation.ref.eager_impl import silu as silu_eager
     from inference_kernel.kernels.activation.ref.torch_impl import silu as silu_torch
-    # Eager is the test oracle; for benchmarking it's not a fair baseline,
-    # so we ship two torch baselines: F.silu (what most users actually call)
-    # and torch.compile of the eager form (what a perf-tuned user would deploy).
     backends["torch"] = silu_torch
-    backends["torch_compile"] = torch.compile(silu_eager, mode="reduce-overhead")
 
     try:
         from inference_kernel.kernels.activation.naive.triton_impl import silu as silu_triton

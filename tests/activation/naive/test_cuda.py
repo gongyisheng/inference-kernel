@@ -1,9 +1,9 @@
-"""CUDA (naive tier) silu/relu correctness vs ref eager reference (also smoke-tests the JIT loader)."""
+"""CUDA (naive tier) silu/relu correctness vs torch reference (also smoke-tests the JIT loader)."""
 
 import pytest
 import torch
-from inference_kernel.kernels.activation.ref.eager_impl import relu as relu_ref
-from inference_kernel.kernels.activation.ref.eager_impl import silu as silu_ref
+from inference_kernel.kernels.activation.ref.torch_impl import relu as relu_ref
+from inference_kernel.kernels.activation.ref.torch_impl import silu as silu_ref
 
 from tests.conftest import assert_close_for_relu, assert_close_for_silu
 

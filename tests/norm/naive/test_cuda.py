@@ -1,8 +1,8 @@
-"""CUDA (naive tier) rmsnorm correctness vs ref eager reference (also smoke-tests the JIT loader)."""
+"""CUDA (naive tier) rmsnorm correctness vs torch reference (also smoke-tests the JIT loader)."""
 
 import pytest
 import torch
-from inference_kernel.kernels.norm.ref.eager_impl import rmsnorm as rmsnorm_ref
+from inference_kernel.kernels.norm.ref.torch_impl import rmsnorm as rmsnorm_ref
 
 from tests.conftest import assert_close_for_rmsnorm
 

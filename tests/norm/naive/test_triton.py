@@ -1,8 +1,8 @@
-"""Triton (naive tier) rmsnorm correctness vs ref eager reference."""
+"""Triton (naive tier) rmsnorm correctness vs torch reference."""
 
 import pytest
 import torch
-from inference_kernel.kernels.norm.ref.eager_impl import rmsnorm as rmsnorm_ref
+from inference_kernel.kernels.norm.ref.torch_impl import rmsnorm as rmsnorm_ref
 from inference_kernel.kernels.norm.naive.triton_impl import rmsnorm as rmsnorm_triton
 
 from tests.conftest import assert_close_for_rmsnorm
