@@ -56,8 +56,9 @@ __global__ void gemm_wmma_kernel(
     }
 }
 
-// Generic SIMT fallback: fp32 accumulate, bounds-checked, one thread per output
-// element. Handles any dtype (fp32/fp16/bf16) and any M/N/K. Correct but slow.
+// Generic SIMT fallback: shared-memory tiled, fp32 accumulate, one thread per
+// output element. Cooperatively stages BLOCK_M x BLOCK_K and BLOCK_K x BLOCK_N
+// tiles, bounds-checked. Handles any dtype (fp32/fp16/bf16) and any M/N/K.
 template <typename scalar_t, int BLOCK_M, int BLOCK_N, int BLOCK_K>
 __global__ void gemm_simt_kernel(
     const scalar_t* __restrict__ a,
@@ -68,32 +69,38 @@ __global__ void gemm_simt_kernel(
     int64_t stride_bk, int64_t stride_bn,
     int64_t stride_cm, int64_t stride_cn
 ){
-    __shared__ float a_tile[BLOCK_M][BLOCK_K];
-    __shared__ float b_tile[BLOCK_K][BLOCK_N];
+    __shared__ float a_shared[BLOCK_M][BLOCK_K];
+    __shared__ float b_shared[BLOCK_K][BLOCK_N];
 
-    const int ty = threadIdx.y, tx = threadIdx.x;   // 0..BLOCK_M-1, 0..BLOCK_N-1
-    const int global_m = blockIdx.y * BLOCK_M + ty;
-    const int global_n = blockIdx.x * BLOCK_N + tx;
+    const int64_t m  = blockIdx.y * blockDim.y + threadIdx.y; // global row (A tile row origin + ty)
+    const int64_t n  = blockIdx.x * blockDim.x + threadIdx.x; // global col (B tile col origin + tx)
+    const int     ty = threadIdx.y;                           // [0, BLOCK_M)
+    const int     tx = threadIdx.x;                           // [0, BLOCK_N)
 
-    float acc = 0.0f;
-    for (int k0 = 0; k0 < K; k0 += BLOCK_K) {
-        if (tx < BLOCK_K) {
-            const int gk = k0 + tx;
-            a_tile[ty][tx] = (global_m < M && gk < K) ? to_float(a[global_m * stride_am + gk * stride_ak]) : 0.0f;
+    float acc = 0.0f;   // this thread owns one output element
+
+    for (int64_t k = 0; k < K; k += BLOCK_K) {
+        // A tile [BLOCK_M][BLOCK_K]: row fixed = ty, loop columns with x-threads
+        for (int kc = tx; kc < BLOCK_K; kc += BLOCK_N) {
+            const int64_t a_col = k + kc;
+            a_shared[ty][kc] = (m < M && a_col < K)
+                ? to_float(a[m * stride_am + a_col * stride_ak]) : 0.0f;
         }
-        if (ty < BLOCK_K) {
-            const int gk = k0 + ty;
-            b_tile[ty][tx] = (gk < K && global_n < N) ? to_float(b[gk * stride_bk + global_n * stride_bn]) : 0.0f;
+        // B tile [BLOCK_K][BLOCK_N]: col fixed = tx, loop rows with y-threads
+        for (int kr = ty; kr < BLOCK_K; kr += BLOCK_M) {
+            const int64_t b_row = k + kr;
+            b_shared[kr][tx] = (b_row < K && n < N)
+                ? to_float(b[b_row * stride_bk + n * stride_bn]) : 0.0f;
         }
-        __syncthreads();
+        __syncthreads();   // tile ready
 
-        for (int k = 0; k < BLOCK_K; ++k)
-            acc += a_tile[ty][k] * b_tile[k][tx];
-        __syncthreads();
+        for (int kk = 0; kk < BLOCK_K; ++kk)
+            acc += a_shared[ty][kk] * b_shared[kk][tx];
+        __syncthreads();   // before next k overwrites the tile
     }
 
-    if (global_m < M && global_n < N)
-        c[global_m * stride_cm + global_n * stride_cn] = from_float<scalar_t>(acc);
+    if (m < M && n < N)
+        c[m * stride_cm + n * stride_cn] = from_float<scalar_t>(acc);
 }
 
 void gemm(
