@@ -19,7 +19,7 @@ from inference_kernel._common.utils import (
 # Import for its registration side effect; ops are called via torch.ops below.
 load_kernel(
     package="inference_kernel.kernels.gemm",
-    sources=["naive/gemm.cu", "opt/gemm_opt.cu", "binding.cpp"],
+    sources=["gemm.cu", "gemm_opt.cu", "binding.cpp"],
 )
 
 _WK = 16  # WMMA fragment depth; tensor-core path requires K aligned to it.

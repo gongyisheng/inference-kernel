@@ -6,7 +6,7 @@ from inference_kernel._common.utils import assert_contiguous, assert_same_device
 # Import for its registration side effect; ops are called via torch.ops below.
 load_kernel(
     package="inference_kernel.kernels.norm",
-    sources=["naive/rmsnorm.cu", "binding.cpp"],
+    sources=["rmsnorm.cu", "binding.cpp"],
 )
 
 

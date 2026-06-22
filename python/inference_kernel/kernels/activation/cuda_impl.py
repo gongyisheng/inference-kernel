@@ -14,7 +14,7 @@ from inference_kernel._common.utils import assert_contiguous, assert_is_cuda
 # Import for its registration side effect; ops are called via torch.ops below.
 load_kernel(
     package="inference_kernel.kernels.activation",
-    sources=["naive/silu.cu", "naive/relu.cu", "binding.cpp"],
+    sources=["silu.cu", "relu.cu", "binding.cpp"],
 )
 
 

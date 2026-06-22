@@ -11,9 +11,9 @@ backend file per category:
   category; a single file may expose several variants of one kernel as
   separate functions (e.g. gemm `cuda_impl.py` exports `gemm` and
   `gemm_naive`).
-- `csrc/<category>/` — C++/CUDA sources, optionally grouped into `naive/` and
-  `opt/` subfolders, with one shared `binding.cpp` at the category root. One
-  compiled extension per category registers all of the category's kernels.
+- `csrc/<category>/` — C++/CUDA sources alongside one shared `binding.cpp` at
+  the category root. One compiled extension per category registers all of the
+  category's kernels.
 
 Backends are imported explicitly; there is no auto-dispatch.
 
@@ -60,11 +60,10 @@ CSV output goes to `benchmarks/results/`.
    reference is written once per kernel and is the oracle every backend is
    tested against. For a second variant of an existing kernel, expose it as a
    distinct function in the same file (e.g. `gemm` vs `gemm_naive`).
-2. `csrc/<category>/`: drop a `<name>.cu` (in a `naive/` or `opt/` subfolder
-   if you keep that split) and declare its forward in the category's shared
-   `csrc/<category>/binding.cpp`. Use distinct symbol names (e.g. `gemm_opt`)
-   so variants don't collide. Point the category's `cuda_impl.py`
-   `sources=[...]` at the new `.cu`.
+2. `csrc/<category>/`: drop a `<name>.cu` and declare its forward in the
+   category's shared `csrc/<category>/binding.cpp`. Use distinct symbol names
+   (e.g. `gemm_opt`) so variants don't collide. Point the category's
+   `cuda_impl.py` `sources=[...]` at the new `.cu`.
 3. `tests/<category>/test_{torch,triton,cuda}.py`: validate the new kernel
    against `torch_impl` — the same oracle and tolerances every backend is
    held to.
