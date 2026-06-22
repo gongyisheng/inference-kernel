@@ -1,8 +1,8 @@
-"""Torch (ref tier) silu/relu invariants."""
+"""Torch silu/relu invariants."""
 
 import torch
-from inference_kernel.kernels.activation.ref.torch_impl import relu as relu_torch
-from inference_kernel.kernels.activation.ref.torch_impl import silu as silu_torch
+from inference_kernel.kernels.activation.torch_impl import relu as relu_torch
+from inference_kernel.kernels.activation.torch_impl import silu as silu_torch
 
 
 def test_silu_torch_preserves_shape_and_dtype() -> None:

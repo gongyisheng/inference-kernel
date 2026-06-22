@@ -46,27 +46,23 @@ def _bind_b(impl):
 def _backends() -> dict:
     backends: dict = {}
 
-    from inference_kernel.kernels.gemm.ref.torch_impl import gemm as gemm_torch
+    from inference_kernel.kernels.gemm.torch_impl import gemm as gemm_torch
     # torch_impl is a @ b → cuBLAS; the production-quality baseline.
     backends["torch"] = _bind_b(gemm_torch)
 
     try:
-        from inference_kernel.kernels.gemm.naive.triton_impl import gemm as gemm_triton
+        from inference_kernel.kernels.gemm.triton_impl import gemm as gemm_triton
         backends["triton"] = _bind_b(gemm_triton)
     except ImportError as e:
         print(f"  [skip] triton import failed: {e}")
 
     try:
-        from inference_kernel.kernels.gemm.naive.cuda_impl import gemm as gemm_cuda
-        backends["cuda"] = _bind_b(gemm_cuda)
+        from inference_kernel.kernels.gemm.cuda_impl import gemm_naive
+        backends["cuda"] = _bind_b(gemm_naive)
+        from inference_kernel.kernels.gemm.cuda_impl import gemm as gemm_cuda_opt
+        backends["cuda_opt"] = _bind_b(gemm_cuda_opt)
     except ImportError as e:
         print(f"  [skip] cuda import failed: {e}")
-
-    try:
-        from inference_kernel.kernels.gemm.opt.cuda_impl import gemm as gemm_cuda_opt
-        backends["cuda_opt"] = _bind_b(gemm_cuda_opt)
-    except ImportError:
-        pass  # no opt kernel yet
 
     return backends
 

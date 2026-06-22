@@ -1,7 +1,7 @@
-"""Torch (ref tier) gemm invariants."""
+"""Torch gemm invariants."""
 
 import torch
-from inference_kernel.kernels.gemm.ref.torch_impl import gemm as gemm_torch
+from inference_kernel.kernels.gemm.torch_impl import gemm as gemm_torch
 
 
 def test_gemm_torch_preserves_shape_and_dtype() -> None:

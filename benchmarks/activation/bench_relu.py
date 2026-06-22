@@ -32,27 +32,21 @@ IO_PER_ELEMENT = 2.0
 def _backends() -> dict:
     backends = {}
 
-    from inference_kernel.kernels.activation.ref.torch_impl import relu as relu_torch
+    from inference_kernel.kernels.activation.torch_impl import relu as relu_torch
 
     backends["torch"] = relu_torch
 
     try:
-        from inference_kernel.kernels.activation.naive.triton_impl import relu as relu_triton
-        backends["triton_naive"] = relu_triton
+        from inference_kernel.kernels.activation.triton_impl import relu as relu_triton
+        backends["triton"] = relu_triton
     except ImportError as e:
         print(f"  [skip] triton import failed: {e}")
 
     try:
-        from inference_kernel.kernels.activation.naive.cuda_impl import relu as relu_cuda
-        backends["cuda_naive"] = relu_cuda
+        from inference_kernel.kernels.activation.cuda_impl import relu as relu_cuda
+        backends["cuda"] = relu_cuda
     except ImportError as e:
         print(f"  [skip] cuda import failed: {e}")
-
-    try:
-        from inference_kernel.kernels.activation.opt.cuda_impl import relu as relu_cuda_opt
-        backends["cuda_opt"] = relu_cuda_opt
-    except ImportError:
-        pass  # no opt kernel yet
 
     return backends
 

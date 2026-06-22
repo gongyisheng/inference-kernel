@@ -1,7 +1,7 @@
-"""Torch (ref tier) attention invariants."""
+"""Torch attention invariants."""
 
 import torch
-from inference_kernel.kernels.attention.ref.torch_impl import attention as attention_torch
+from inference_kernel.kernels.attention.torch_impl import attention as attention_torch
 
 
 def test_attention_torch_preserves_shape_and_dtype() -> None:

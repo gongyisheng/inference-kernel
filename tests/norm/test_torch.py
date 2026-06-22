@@ -1,7 +1,7 @@
-"""Torch (ref tier) rmsnorm invariants."""
+"""Torch rmsnorm invariants."""
 
 import torch
-from inference_kernel.kernels.norm.ref.torch_impl import rmsnorm as rmsnorm_torch
+from inference_kernel.kernels.norm.torch_impl import rmsnorm as rmsnorm_torch
 
 
 def test_rmsnorm_torch_preserves_shape_and_dtype() -> None:

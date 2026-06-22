@@ -5,14 +5,15 @@ GPU inference kernels with `torch`, `triton`, and `cuda` backends side-by-side.
 Python wrappers and native sources are split at the language level, one
 backend file per category:
 
-- `python/inference_kernel/kernels/<category>/` — kernels grouped into
-  tier subfolders: `ref/` (`eager_impl.py` slow correctness oracle +
-  `torch_impl.py` fused PyTorch ceiling), `naive/` (readable teaching
-  `triton_impl.py` / `cuda_impl.py`), and `opt/` (production-grade
-  hand-written kernels). Each tier file holds every kernel for the category.
-- `csrc/<category>/` — C++/CUDA sources in matching `naive/` and `opt/`
-  subfolders, with one shared `binding.cpp` at the category root. One
-  compiled extension per category registers all tiers' kernels.
+- `python/inference_kernel/kernels/<category>/` — one file per backend:
+  `torch_impl.py` (the correctness oracle + fused PyTorch ceiling),
+  `triton_impl.py`, and `cuda_impl.py`. Each file holds every kernel for the
+  category; a single file may expose several variants of one kernel as
+  separate functions (e.g. gemm `cuda_impl.py` exports `gemm` and
+  `gemm_naive`).
+- `csrc/<category>/` — C++/CUDA sources, optionally grouped into `naive/` and
+  `opt/` subfolders, with one shared `binding.cpp` at the category root. One
+  compiled extension per category registers all of the category's kernels.
 
 Backends are imported explicitly; there is no auto-dispatch.
 
@@ -29,11 +30,9 @@ For an AOT install with prebuilt extensions: `uv pip install .` (or `pip install
 ## Use
 
 ```python
-from inference_kernel.kernels.activation.ref.eager_impl  import silu as silu_eager   # slow oracle
-from inference_kernel.kernels.activation.ref.torch_impl  import silu as silu_torch   # F.silu
-from inference_kernel.kernels.activation.naive.triton_impl     import silu as silu_triton
-from inference_kernel.kernels.activation.naive.cuda_impl       import silu as silu_cuda
-# from inference_kernel.kernels.activation.opt.cuda_impl       import silu as silu_cuda_opt  # when an opt kernel exists
+from inference_kernel.kernels.activation.torch_impl  import silu as silu_torch   # reference
+from inference_kernel.kernels.activation.triton_impl import silu as silu_triton
+from inference_kernel.kernels.activation.cuda_impl   import silu as silu_cuda
 ```
 
 ## Test
@@ -56,23 +55,22 @@ CSV output goes to `benchmarks/results/`.
 
 ## Adding a kernel
 
-1. Pick a tier. Educational/first version → `naive/`. Production version →
-   `opt/`. Add the function to that tier's `triton_impl.py` / `cuda_impl.py`
-   under `python/inference_kernel/kernels/<category>/<tier>/`. Reference
-   impls (`ref/eager_impl.py`, `ref/torch_impl.py`) are written
-   once per kernel and shared by every tier.
-2. `csrc/<category>/<tier>/`: drop a `<name>.cu` and declare its forward in
-   the category's shared `csrc/<category>/binding.cpp`. Use an `_opt` suffix
-   for opt symbols (e.g. `silu_opt_forward`) so they don't collide with the
-   naive symbols. Point the tier's `cuda_impl.py` `sources=[...]` at the new
-   `<tier>/<name>.cu`.
+1. Add the function to the category's `triton_impl.py` / `cuda_impl.py` under
+   `python/inference_kernel/kernels/<category>/`. The `torch_impl.py`
+   reference is written once per kernel and is the oracle every backend is
+   tested against. For a second variant of an existing kernel, expose it as a
+   distinct function in the same file (e.g. `gemm` vs `gemm_naive`).
+2. `csrc/<category>/`: drop a `<name>.cu` (in a `naive/` or `opt/` subfolder
+   if you keep that split) and declare its forward in the category's shared
+   `csrc/<category>/binding.cpp`. Use distinct symbol names (e.g. `gemm_opt`)
+   so variants don't collide. Point the category's `cuda_impl.py`
+   `sources=[...]` at the new `.cu`.
 3. `tests/<category>/test_{torch,triton,cuda}.py`: validate the new kernel
-   against `ref/eager_impl` — the same oracle and tolerances every
-   tier is held to.
+   against `torch_impl` — the same oracle and tolerances every backend is
+   held to.
 4. `benchmarks/<category>/bench_<name>.py`: the benchmark overlays every
-   tier that implements the kernel on one chart (opt rows appear
-   automatically once the opt import resolves).
+   backend that implements the kernel on one chart.
 
-`setup.py` auto-discovers `csrc/<category>/` folders and the JIT loader
-maps the package name to the matching csrc dir by convention. No central
-registry to update.
+`setup.py` auto-discovers `csrc/<category>/` folders and the JIT loader maps
+the package name to the matching csrc dir by convention. No central registry
+to update.
