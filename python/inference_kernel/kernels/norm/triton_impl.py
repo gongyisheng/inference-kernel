@@ -3,7 +3,7 @@ import torch
 import triton
 import triton.language as tl
 
-from inference_kernel._common.utils import assert_contiguous, assert_same_device, assert_same_dtype
+from inference_kernel._common.utils import assert_is_cuda, assert_contiguous, assert_same_device, assert_same_dtype
 
 
 @triton.jit
@@ -36,15 +36,13 @@ def _rmsnorm_kernel(
 
 
 def rmsnorm(x: torch.Tensor, weight: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
-    if not x.is_cuda:
-        raise ValueError("triton rmsnorm requires a CUDA tensor")
-    assert_contiguous(x)
-    assert_contiguous(weight)
+    assert_is_cuda(x, weight)
+    assert_contiguous(x, weight)
     device = assert_same_device(x, weight)
     dtype = assert_same_dtype(x, weight)
     y = torch.empty_like(x, device=device, dtype=dtype)
 
-    N = x.shape[-1]
+    N = x.shape[-1] 
     M = x.numel() // N
     BLOCK_SIZE = triton.next_power_of_2(N)
     grid = (M,)
