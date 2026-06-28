@@ -6,7 +6,7 @@ from inference_kernel.kernels.math import torch_impl, triton_impl
 
 from tests.conftest import assert_close_for_math
 
-OPS = ["max", "min", "sum"]
+OPS = ["max", "min", "sum", "avg"]
 
 
 @pytest.mark.triton

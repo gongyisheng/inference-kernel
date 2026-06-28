@@ -127,6 +127,47 @@ def sum(x: torch.Tensor, dim: int = -1) -> torch.Tensor:
 
 
 @triton.jit
+def _avg_kernel(
+    a_ptr, 
+    b_ptr,
+    reduce_size,
+    a_row_stride,
+    BLOCK_SIZE: tl.constexpr,
+):
+    row = tl.program_id(axis=0)
+    a_start = a_ptr + a_row_stride * row
+    acc = tl.full((BLOCK_SIZE,), 0.0, tl.float32)
+
+    for off in range(0, reduce_size, BLOCK_SIZE):
+        col = off + tl.arange(0, BLOCK_SIZE)
+        mask = col < reduce_size
+        frag_a = tl.load(a_start + col, mask=mask, other=0.0).to(tl.float32)
+        acc = tl.add(acc, frag_a)
+
+    tl.store(b_ptr + row, (tl.sum(acc, axis=0) / reduce_size).to(b_ptr.dtype.element_ty))
+
+
+def avg(x: torch.Tensor, dim: int = -1) -> torch.Tensor:
+    assert_is_cuda(x)
+
+    x = x.movedim(dim, -1).contiguous()
+    reduce_size = x.shape[-1]
+    out_shape = x.shape[:-1]
+
+    x2d = x.reshape(-1, reduce_size)
+    out = torch.empty(x2d.shape[0], dtype=x.dtype, device=x.device)
+    grid = (x2d.shape[0],)
+
+    _avg_kernel[grid](
+        x2d, out,
+        reduce_size,
+        x2d.stride(0),
+        BLOCK_SIZE=1024
+    )
+    return out.reshape(out_shape)
+
+
+@triton.jit
 def _softmax_kernel(
     a_ptr,
     b_ptr,

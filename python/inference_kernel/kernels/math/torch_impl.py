@@ -22,6 +22,11 @@ def sum(x: torch.Tensor, dim: int = -1) -> torch.Tensor:
     return x.float().sum(dim=dim).to(x.dtype)
 
 
+def avg(x: torch.Tensor, dim: int = -1) -> torch.Tensor:
+    """Mean reduction along `dim`, accumulated in fp32."""
+    return x.float().mean(dim=dim).to(x.dtype)
+
+
 def softmax(x: torch.Tensor, dim: int = -1) -> torch.Tensor:
     """Softmax along `dim`, computed in fp32."""
     return torch.softmax(x.float(), dim=dim).to(x.dtype)
