@@ -2,7 +2,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ._utils import assert_is_cuda, assert_same_device, assert_same_dtype
+from .utils import assert_is_cuda, assert_same_device, assert_same_dtype
 
 
 def _attn_configs() -> list[triton.Config]:

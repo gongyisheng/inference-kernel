@@ -9,7 +9,7 @@ the naive kernel.
 import torch
 
 from . import _C  # noqa: F401  (import side effect: registers torch.ops.aot_kernel.*)
-from ._utils import (
+from .utils import (
     assert_contiguous,
     assert_is_cuda,
     assert_same_device,

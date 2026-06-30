@@ -4,7 +4,7 @@ namespace by importing the compiled `_C` extension."""
 import torch
 
 from . import _C  # noqa: F401  (import side effect: registers torch.ops.aot_kernel.*)
-from ._utils import assert_contiguous, assert_is_cuda
+from .utils import assert_contiguous, assert_is_cuda
 
 
 def relu(x: torch.Tensor) -> torch.Tensor:

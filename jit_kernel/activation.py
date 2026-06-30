@@ -2,7 +2,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ._utils import assert_contiguous, assert_is_cuda
+from .utils import assert_contiguous, assert_is_cuda
 
 _CONFIGS = [
     triton.Config({"BLOCK_SIZE": bs}, num_warps=w, num_stages=s)

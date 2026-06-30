@@ -3,7 +3,7 @@
 import torch
 
 from . import _C  # noqa: F401  (import side effect: registers torch.ops.aot_kernel.*)
-from ._utils import assert_contiguous, assert_same_device, assert_same_dtype
+from .utils import assert_contiguous, assert_same_device, assert_same_dtype
 
 
 def rmsnorm(x: torch.Tensor, weight: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:

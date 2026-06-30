@@ -2,7 +2,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ._utils import assert_is_cuda
+from .utils import assert_is_cuda
 
 
 @triton.jit
