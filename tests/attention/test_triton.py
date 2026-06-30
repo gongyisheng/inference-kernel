@@ -2,9 +2,9 @@
 
 import pytest
 import torch
-from inference_kernel.kernels.attention.torch_impl import attention as attn_ref
-from inference_kernel.kernels.attention.triton_impl import attention as attn_triton
 
+from jit_kernel.attention import attention as attn_triton
+from ref.attention import attention as attn_ref
 from tests.conftest import assert_close_for_attention
 
 

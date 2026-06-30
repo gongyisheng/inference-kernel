@@ -1,48 +1,62 @@
 # inference-kernel
 
-GPU inference kernels with `torch`, `triton`, and `cuda` backends side-by-side.
+GPU inference kernels, split into three importable packages by backend so they
+can be reused independently in other projects. All three expose the **same
+operation names and signatures**, so they are drop-in swappable:
 
-Python wrappers and native sources are split at the language level, one
-backend file per category:
+- **`ref`** — torch/eager reference implementations; the correctness oracle.
+- **`jit_kernel`** — Triton kernels, compiled at runtime (first call).
+- **`aot_kernel`** — CUDA/C++ kernels, ahead-of-time compiled via CMake into a
+  prebuilt `_C` extension (no nvcc needed at import). Ops are registered under
+  the `torch.ops.aot_kernel` namespace.
 
-- `python/inference_kernel/kernels/<category>/` — one file per backend:
-  `torch_impl.py` (the correctness oracle + fused PyTorch ceiling),
-  `triton_impl.py`, and `cuda_impl.py`. Each file holds every kernel for the
-  category; a single file may expose several variants of one kernel as
-  separate functions (e.g. gemm `cuda_impl.py` exports `gemm` and
-  `gemm_naive`).
-- `csrc/<category>/` — C++/CUDA sources alongside one shared `binding.cpp` at
-  the category root. One compiled extension per category registers all of the
-  category's kernels.
+```
+ref/         <op>.py per category            # torch oracle
+jit_kernel/  <op>.py per category            # triton
+aot_kernel/  <op>.py + csrc/<category>/*.cu  # cuda; csrc/registration.cc binds all ops
+```
 
-Backends are imported explicitly; there is no auto-dispatch.
+`attention` and `math` exist only in `ref`/`jit_kernel` for now (no `.cu` yet).
+The few validation helpers are duplicated into each package's `_utils.py`.
 
 ## Install
 
 ```bash
 uv venv
-uv pip install -e ".[dev]"
+uv pip install -e ".[dev]" --no-build-isolation
 ```
 
-CUDA backends compile JIT on first use (cached under `~/.cache/torch_extensions`).
-For an AOT install with prebuilt extensions: `uv pip install .` (or `pip install .`).
+`--no-build-isolation` builds `aot_kernel._C` against the torch already in the
+venv (avoids re-downloading the CUDA torch wheel and ABI mismatches). The CUDA
+extension is compiled once at install time via CMake (scikit-build-core). Set
+the target arch with `-DCMAKE_CUDA_ARCHITECTURES=...` if the default (`120`,
+Blackwell) doesn't match your GPU — e.g. `80` (A100), `89` (L4/4090), `90`
+(H100). Pass it through scikit-build-core:
+
+```bash
+uv pip install -e . --no-build-isolation \
+  --config-settings=cmake.define.CMAKE_CUDA_ARCHITECTURES=89
+```
 
 ## Use
 
 ```python
-from inference_kernel.kernels.activation.torch_impl  import silu as silu_torch   # reference
-from inference_kernel.kernels.activation.triton_impl import silu as silu_triton
-from inference_kernel.kernels.activation.cuda_impl   import silu as silu_cuda
+from ref import silu          # torch oracle
+from jit_kernel import silu   # triton
+from aot_kernel import silu   # cuda (prebuilt)
 ```
 
 ## Test
 
 ```bash
-uv run pytest tests/                       # all
-uv run pytest tests/ --device cuda:1       # specific GPU
+uv run pytest                          # current CUDA device
+uv run pytest --device cuda:0          # specific GPU
 ```
 
-CUDA / Triton tests skip cleanly when no GPU is available.
+Note: Triton launches against the *current* CUDA device, so run on the device
+that is current (default `cuda` = current device). Pinning `--device cuda:1`
+while device 0 is current makes Triton reject the inputs. CUDA / Triton tests
+skip cleanly when no GPU is available.
 
 ## Benchmark
 
@@ -51,25 +65,23 @@ uv run python -m benchmarks.activation.bench_silu --device cuda:0
 uv run python scripts/run_all_benches.py --device cuda:0
 ```
 
-CSV output goes to `benchmarks/results/`.
+CSV + PNG output goes to `benchmarks/results/`.
 
 ## Adding a kernel
 
-1. Add the function to the category's `triton_impl.py` / `cuda_impl.py` under
-   `python/inference_kernel/kernels/<category>/`. The `torch_impl.py`
-   reference is written once per kernel and is the oracle every backend is
-   tested against. For a second variant of an existing kernel, expose it as a
-   distinct function in the same file (e.g. `gemm` vs `gemm_naive`).
-2. `csrc/<category>/`: drop a `<name>.cu` and declare its forward in the
-   category's shared `csrc/<category>/binding.cpp`. Use distinct symbol names
-   (e.g. `gemm_opt`) so variants don't collide. Point the category's
-   `cuda_impl.py` `sources=[...]` at the new `.cu`.
-3. `tests/<category>/test_{torch,triton,cuda}.py`: validate the new kernel
-   against `torch_impl` — the same oracle and tolerances every backend is
-   held to.
-4. `benchmarks/<category>/bench_<name>.py`: the benchmark overlays every
-   backend that implements the kernel on one chart.
-
-`setup.py` auto-discovers `csrc/<category>/` folders and the JIT loader maps
-the package name to the matching csrc dir by convention. No central registry
-to update.
+1. Reference first: add the op to `ref/<category>.py` — the oracle every
+   backend is tested against.
+2. Triton: add it to `jit_kernel/<category>.py`, same function name/signature.
+3. CUDA:
+   - Drop `aot_kernel/csrc/<category>/<name>.cu`.
+   - Declare its forward in `aot_kernel/csrc/include/ops.h` and add a
+     `m.def` / `m.impl` line to `aot_kernel/csrc/registration.cc` (one
+     `TORCH_LIBRARY(aot_kernel, ...)` block binds every op). Use distinct
+     symbol names for variants (e.g. `gemm_opt`).
+   - Add a thin wrapper in `aot_kernel/<category>.py` calling
+     `torch.ops.aot_kernel.<op>`.
+   - Rebuild: `uv pip install -e . --no-build-isolation`. CMake globs
+     `aot_kernel/csrc/**/*.cu` automatically — no source list to update.
+4. `tests/<category>/test_{triton,cuda}.py`: validate against `ref`.
+5. `benchmarks/<category>/bench_<name>.py`: overlays every backend on one chart.
+```

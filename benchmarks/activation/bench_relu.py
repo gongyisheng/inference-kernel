@@ -4,11 +4,10 @@ Run:  uv run python benchmarks/activation/bench_relu.py --device cuda
 """
 
 import argparse
-
-import torch
-
 import sys
 from pathlib import Path
+
+import torch
 
 # Runnable directly (python benchmarks/<cat>/bench_*.py), not only via -m:
 # put the repo root on sys.path so `benchmarks._harness` resolves.
@@ -32,18 +31,18 @@ IO_PER_ELEMENT = 2.0
 def _backends() -> dict:
     backends = {}
 
-    from inference_kernel.kernels.activation.torch_impl import relu as relu_torch
+    from ref.activation import relu as relu_torch
 
     backends["torch"] = relu_torch
 
     try:
-        from inference_kernel.kernels.activation.triton_impl import relu as relu_triton
+        from jit_kernel.activation import relu as relu_triton
         backends["triton"] = relu_triton
     except ImportError as e:
         print(f"  [skip] triton import failed: {e}")
 
     try:
-        from inference_kernel.kernels.activation.cuda_impl import relu as relu_cuda
+        from aot_kernel.activation import relu as relu_cuda
         backends["cuda"] = relu_cuda
     except ImportError as e:
         print(f"  [skip] cuda import failed: {e}")

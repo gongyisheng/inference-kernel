@@ -4,12 +4,11 @@ Run:  python benchmarks/norm/bench_rmsnorm.py --device cuda
 """
 
 import argparse
+import sys
+from pathlib import Path
 
 import torch
 import torch._dynamo
-
-import sys
-from pathlib import Path
 
 # Runnable directly (python benchmarks/<cat>/bench_*.py), not only via -m:
 # put the repo root on sys.path so `benchmarks._harness` resolves.
@@ -63,20 +62,20 @@ def _bind_weight(impl):
 def _backends() -> dict:
     backends: dict = {}
 
-    from inference_kernel.kernels.norm.torch_impl import rmsnorm as rmsnorm_torch
+    from ref.norm import rmsnorm as rmsnorm_torch
     backends["torch"] = _bind_weight(rmsnorm_torch)
     backends["torch_compile"] = _bind_weight(
         torch.compile(rmsnorm_torch, mode="reduce-overhead")
     )
 
     try:
-        from inference_kernel.kernels.norm.triton_impl import rmsnorm as rmsnorm_triton
+        from jit_kernel.norm import rmsnorm as rmsnorm_triton
         backends["triton"] = _bind_weight(rmsnorm_triton)
     except ImportError as e:
         print(f"  [skip] triton import failed: {e}")
 
     try:
-        from inference_kernel.kernels.norm.cuda_impl import rmsnorm as rmsnorm_cuda
+        from aot_kernel.norm import rmsnorm as rmsnorm_cuda
         backends["cuda"] = _bind_weight(rmsnorm_cuda)
     except ImportError as e:
         print(f"  [skip] cuda import failed: {e}")
