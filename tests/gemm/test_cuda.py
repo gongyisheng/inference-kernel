@@ -6,8 +6,8 @@ and `gemm_naive` (always the naive WMMA kernel).
 
 import pytest
 import torch
-from inference_kernel.kernels.gemm.torch_impl import gemm as gemm_ref
 
+from ref.gemm import gemm as gemm_ref
 from tests.conftest import assert_close_for_gemm
 
 
@@ -29,8 +29,8 @@ from tests.conftest import assert_close_for_gemm
 def test_gemm_cuda_matches_ref(
     impl: str, shape: tuple[int, int, int], dtype: torch.dtype, device: torch.device
 ) -> None:
-    import inference_kernel.kernels.gemm.cuda_impl as cuda_impl
-    gemm_cuda = getattr(cuda_impl, impl)
+    import aot_kernel
+    gemm_cuda = getattr(aot_kernel, impl)
 
     M, K, N = shape
     torch.manual_seed(0)
@@ -43,7 +43,7 @@ def test_gemm_cuda_matches_ref(
 
 @pytest.mark.cuda
 def test_gemm_cuda_preserves_shape_and_dtype(dtype: torch.dtype, device: torch.device) -> None:
-    from inference_kernel.kernels.gemm.cuda_impl import gemm as gemm_cuda
+    from aot_kernel.gemm import gemm as gemm_cuda
 
     a = torch.randn(3, 5, dtype=dtype, device=device)
     b = torch.randn(5, 7, dtype=dtype, device=device)
@@ -54,7 +54,7 @@ def test_gemm_cuda_preserves_shape_and_dtype(dtype: torch.dtype, device: torch.d
 
 @pytest.mark.cuda
 def test_gemm_cuda_rejects_cpu_tensor() -> None:
-    from inference_kernel.kernels.gemm.cuda_impl import gemm as gemm_cuda
+    from aot_kernel.gemm import gemm as gemm_cuda
 
     a = torch.randn(8, 16)
     b = torch.randn(16, 8)
@@ -64,7 +64,7 @@ def test_gemm_cuda_rejects_cpu_tensor() -> None:
 
 @pytest.mark.cuda
 def test_gemm_cuda_rejects_non_contiguous(device: torch.device) -> None:
-    from inference_kernel.kernels.gemm.cuda_impl import gemm as gemm_cuda
+    from aot_kernel.gemm import gemm as gemm_cuda
 
     a = torch.randn(8, 8, device=device).t()
     b = torch.randn(8, 8, device=device)
@@ -75,7 +75,7 @@ def test_gemm_cuda_rejects_non_contiguous(device: torch.device) -> None:
 
 @pytest.mark.cuda
 def test_gemm_cuda_rejects_mismatched_dtype(device: torch.device) -> None:
-    from inference_kernel.kernels.gemm.cuda_impl import gemm as gemm_cuda
+    from aot_kernel.gemm import gemm as gemm_cuda
 
     a = torch.randn(8, 8, device=device, dtype=torch.float32)
     b = torch.randn(8, 8, device=device, dtype=torch.float16)

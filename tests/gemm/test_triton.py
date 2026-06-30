@@ -2,9 +2,9 @@
 
 import pytest
 import torch
-from inference_kernel.kernels.gemm.torch_impl import gemm as gemm_ref
-from inference_kernel.kernels.gemm.triton_impl import gemm as gemm_triton
 
+from jit_kernel.gemm import gemm as gemm_triton
+from ref.gemm import gemm as gemm_ref
 from tests.conftest import assert_close_for_gemm
 
 

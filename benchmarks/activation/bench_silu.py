@@ -4,11 +4,10 @@ Run:  uv run python3 benchmarks/activation/bench_silu.py --device cuda
 """
 
 import argparse
-
-import torch
-
 import sys
 from pathlib import Path
+
+import torch
 
 # Runnable directly (python benchmarks/<cat>/bench_*.py), not only via -m:
 # put the repo root on sys.path so `benchmarks._harness` resolves.
@@ -32,17 +31,17 @@ IO_PER_ELEMENT = 2.0  # one read + one write
 def _backends() -> dict:
     backends = {}
 
-    from inference_kernel.kernels.activation.torch_impl import silu as silu_torch
+    from ref.activation import silu as silu_torch
     backends["torch"] = silu_torch
 
     try:
-        from inference_kernel.kernels.activation.triton_impl import silu as silu_triton
+        from jit_kernel.activation import silu as silu_triton
         backends["triton"] = silu_triton
     except ImportError as e:
         print(f"  [skip] triton import failed: {e}")
 
     try:
-        from inference_kernel.kernels.activation.cuda_impl import silu as silu_cuda
+        from aot_kernel.activation import silu as silu_cuda
         backends["cuda"] = silu_cuda
     except ImportError as e:
         print(f"  [skip] cuda import failed: {e}")

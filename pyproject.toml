@@ -1,13 +1,13 @@
 [project]
 name = "inference-kernel"
 version = "0.0.1"
-description = "GPU inference kernels with torch, triton, and CUDA implementations"
-requires-python = "==3.12.*"
+description = "GPU inference kernels: torch reference (ref), triton (jit_kernel), and CUDA (aot_kernel)"
+requires-python = ">=3.10"
 readme = "README.md"
 dependencies = [
-    "torch==2.11.0",
-    "triton==3.6.0",
-    "numpy==2.4.4",
+    "torch>=2.4",
+    "triton>=3.0",
+    "numpy>=1.24",
 ]
 
 [project.optional-dependencies]
@@ -19,24 +19,28 @@ dev = [
     "matplotlib",
     "pre-commit",
     "ninja",
+    "cmake>=3.26",
+    "scikit-build-core>=0.10",
 ]
 
 [build-system]
-requires = ["setuptools>=75", "wheel", "torch==2.11.0"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core>=0.10", "torch>=2.4"]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+# Pure-python packages shipped as-is; aot_kernel/_C is built by CMake and
+# installed into the aot_kernel package via CMakeLists `install(TARGETS _C ...)`.
+wheel.packages = ["ref", "jit_kernel", "aot_kernel"]
+cmake.version = ">=3.26"
+build.verbose = true
+# scikit-build editable installs rebuild the extension on import when sources
+# change; fine for dev.
 
 [tool.uv]
-# Build this project against the torch already in the venv instead of a fresh
-# isolated env (which would reinstall the ~2GB CUDA torch wheel every rebuild
-# and risk an ABI mismatch with the runtime torch). Build deps must be present
-# in the env — they are (torch / setuptools / wheel).
+# Build against the torch already in the venv (no isolated env re-downloading
+# the ~2GB CUDA torch wheel; avoids ABI mismatch). Build deps (torch /
+# scikit-build-core / cmake / ninja) must be present in the env.
 no-build-isolation-package = ["inference-kernel"]
-
-[tool.setuptools.packages.find]
-where = ["python"]
-
-[tool.setuptools.package-dir]
-"" = "python"
 
 [tool.ruff]
 line-length = 100

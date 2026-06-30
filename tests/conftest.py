@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for inference_kernel tests."""
+"""Shared pytest fixtures for inference-kernel tests."""
 
 import pytest
 import torch

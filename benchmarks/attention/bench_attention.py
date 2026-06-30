@@ -4,11 +4,11 @@ Run:  uv run python3 benchmarks/attention/bench_attention.py --device cuda
 """
 
 import argparse
+import sys
+from pathlib import Path
 
 import torch
 
-import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks._harness import run_bench
@@ -49,12 +49,12 @@ def _bind_kv(impl):
 def _backends() -> dict:
     backends: dict = {}
 
-    from inference_kernel.kernels.attention.torch_impl import attention as attn_torch
+    from ref.attention import attention as attn_torch
     # torch_impl is F.scaled_dot_product_attention → the production baseline.
     backends["torch"] = _bind_kv(attn_torch)
 
     try:
-        from inference_kernel.kernels.attention.triton_impl import attention as attn_triton
+        from jit_kernel.attention import attention as attn_triton
         backends["triton"] = _bind_kv(attn_triton)
     except ImportError as e:
         print(f"  [skip] triton import failed: {e}")

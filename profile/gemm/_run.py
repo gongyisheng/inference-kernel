@@ -8,7 +8,9 @@ import argparse
 
 import torch
 
-from inference_kernel.kernels.gemm import torch_impl, cuda_impl, triton_impl
+import aot_kernel as cuda_impl
+import jit_kernel as triton_impl
+import ref as torch_impl
 
 DTYPES = {
     "fp32": torch.float32,

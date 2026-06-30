@@ -2,8 +2,9 @@
 
 import pytest
 import torch
-from inference_kernel.kernels.math import torch_impl, triton_impl
 
+import jit_kernel.math as triton_impl
+import ref.math as torch_impl
 from tests.conftest import assert_close_for_math
 
 OPS = ["max", "min", "sum", "avg"]
