@@ -22,6 +22,9 @@ TORCH_LIBRARY(aot_kernel, m) {
 
     m.def("gemm_opt(Tensor! out, Tensor a, Tensor b) -> ()");
     m.impl("gemm_opt", torch::kCUDA, &gemm_opt);
+
+    m.def("gemm_cutlass(Tensor! out, Tensor a, Tensor b) -> ()");
+    m.impl("gemm_cutlass", torch::kCUDA, &gemm_cutlass);
 }
 
 REGISTER_EXTENSION(_C)

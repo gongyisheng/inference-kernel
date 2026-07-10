@@ -15,3 +15,4 @@ void rmsnorm_forward(torch::Tensor out, torch::Tensor x, torch::Tensor weight, d
 // gemm
 void gemm(torch::Tensor out, torch::Tensor a, torch::Tensor b);
 void gemm_opt(torch::Tensor out, torch::Tensor a, torch::Tensor b);
+void gemm_cutlass(torch::Tensor out, torch::Tensor a, torch::Tensor b);

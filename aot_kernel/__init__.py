@@ -6,13 +6,14 @@ and `jit_kernel` (no `attention`/`math` until those kernels exist).
 """
 
 from .activation import relu, silu
-from .gemm import gemm, gemm_naive
+from .gemm import gemm, gemm_cutlass, gemm_naive
 from .norm import rmsnorm
 
 __version__ = "0.0.1"
 
 __all__ = [
     "gemm",
+    "gemm_cutlass",
     "gemm_naive",
     "relu",
     "rmsnorm",

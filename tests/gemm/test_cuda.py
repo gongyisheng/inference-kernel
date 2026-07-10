@@ -1,7 +1,7 @@
 """CUDA gemm correctness vs torch reference (also smoke-tests the JIT loader).
 
-Covers both the dispatching `gemm` (opt tensor-core kernel, naive fallback)
-and `gemm_naive` (always the naive WMMA kernel).
+Covers the dispatching `gemm` (opt tensor-core kernel, naive fallback),
+`gemm_naive` (always the naive WMMA kernel), and `gemm_cutlass` (CUTLASS 2.x).
 """
 
 import pytest
@@ -12,7 +12,7 @@ from tests.conftest import assert_close_for_gemm
 
 
 @pytest.mark.cuda
-@pytest.mark.parametrize("impl", ["gemm", "gemm_naive"])
+@pytest.mark.parametrize("impl", ["gemm", "gemm_naive", "gemm_cutlass"])
 @pytest.mark.parametrize(
     "shape",
     [

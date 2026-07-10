@@ -11,6 +11,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_STANDARD 17)
 
 find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
+find_package(CUDAToolkit REQUIRED)
+
+# CUTLASS: header-only. Fetch a pinned release and use only its include tree
+# (Populate, not MakeAvailable, so we skip building CUTLASS's own tests/tools).
+include(FetchContent)
+FetchContent_Declare(cutlass
+  GIT_REPOSITORY https://github.com/NVIDIA/cutlass.git
+  GIT_TAG v4.5.3
+  GIT_SHALLOW TRUE)
+FetchContent_GetProperties(cutlass)
+if(NOT cutlass_POPULATED)
+  FetchContent_Populate(cutlass)
+endif()
 
 # Locate the Torch CMake package shipped with the installed torch wheel.
 execute_process(
@@ -34,11 +47,12 @@ file(GLOB_RECURSE AOT_SOURCES CONFIGURE_DEPENDS
 
 python_add_library(_C MODULE ${AOT_SOURCES} WITH_SOABI)
 target_include_directories(_C PRIVATE
-  "${CMAKE_CURRENT_SOURCE_DIR}/aot_kernel/csrc/include")
+  "${CMAKE_CURRENT_SOURCE_DIR}/aot_kernel/csrc/include"
+  "${cutlass_SOURCE_DIR}/include")
 target_link_libraries(_C PRIVATE "${TORCH_LIBRARIES}" Python::Module)
 target_compile_definitions(_C PRIVATE TORCH_EXTENSION_NAME=_C)
 target_compile_options(_C PRIVATE
-  $<$<COMPILE_LANGUAGE:CUDA>:-O3;--use_fast_math>
+  $<$<COMPILE_LANGUAGE:CUDA>:-O3;--use_fast_math;--expt-relaxed-constexpr;--expt-extended-lambda>
   $<$<COMPILE_LANGUAGE:CXX>:-O3>)
 
 # Installed next to the python sources so `import aot_kernel._C` resolves.

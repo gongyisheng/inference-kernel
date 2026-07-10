@@ -49,3 +49,14 @@ def gemm_naive(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     out = torch.empty((a.size(0), b.size(1)), device=device, dtype=dtype)
     torch.ops.aot_kernel.gemm(out, a, b)
     return out
+
+
+def gemm_cutlass(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    """CUTLASS GEMM. fp16/bf16 use the SM80 tensor-op path (SIMT fallback for
+    K/N not divisible by 8); fp32 uses SIMT."""
+    device, dtype = _validate(a, b)
+    if dtype not in (torch.float16, torch.bfloat16, torch.float32):
+        raise ValueError(f"gemm_cutlass: unsupported dtype {dtype}")
+    out = torch.empty((a.size(0), b.size(1)), device=device, dtype=dtype)
+    torch.ops.aot_kernel.gemm_cutlass(out, a, b)
+    return out
