@@ -67,22 +67,33 @@ def _make_input(shape, dtype, device):
     return a
 
 
-def _torch_baseline(a, scale_mode):
+def _int8_scaled(a, b_col, sa, sb):
+    acc = torch._int_mm(a, b_col)  # int32 (M, N)
+    return (acc.float() * sa * sb).to(torch.bfloat16)
+
+
+_int8_scaled_compiled = torch.compile(_int8_scaled)
+
+
+def _torch_baseline(a, scale_mode, compiled=False):
     if scale_mode == "tensor":
         sa, sb = _SA_T, _SB_T
     else:
         sa, sb = _SA_R.reshape(-1, 1), _SB_R.reshape(1, -1)
     if a.dtype == FP8:
+        if compiled:
+            raise ValueError("torch.compile int8 baseline skips fp8")
         return torch._scaled_mm(a, _B_COL, scale_a=sa, scale_b=sb, out_dtype=torch.bfloat16)
     # int8: no fused scaled path -> int_mm then dequant.
-    acc = torch._int_mm(a, _B_COL)  # int32 (M, N)
-    return (acc.float() * sa * sb).to(torch.bfloat16)
+    return (_int8_scaled_compiled if compiled else _int8_scaled)(a, _B_COL, sa, sb)
 
 
 def _backends() -> dict:
     backends: dict = {
         "torch_tensor": lambda a: _torch_baseline(a, "tensor"),
         "torch_row": lambda a: _torch_baseline(a, "row"),
+        "torch_compile_tensor": lambda a: _torch_baseline(a, "tensor", compiled=True),
+        "torch_compile_row": lambda a: _torch_baseline(a, "row", compiled=True),
     }
     try:
         from jit_kernel.gemm import scaled_gemm
