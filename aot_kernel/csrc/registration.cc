@@ -25,6 +25,9 @@ TORCH_LIBRARY(aot_kernel, m) {
 
     m.def("gemm_cutlass(Tensor! out, Tensor a, Tensor b) -> ()");
     m.impl("gemm_cutlass", torch::kCUDA, &gemm_cutlass);
+
+    m.def("gemm_cutlass_fused_act(Tensor! out, Tensor a, Tensor b, int activation) -> ()");
+    m.impl("gemm_cutlass_fused_act", torch::kCUDA, &gemm_cutlass_fused_act);
 }
 
 REGISTER_EXTENSION(_C)

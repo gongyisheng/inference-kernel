@@ -6,6 +6,7 @@ Covers the dispatching `gemm` (opt tensor-core kernel, naive fallback),
 
 import pytest
 import torch
+import torch.nn.functional as F
 
 from ref.gemm import gemm as gemm_ref
 from tests.conftest import assert_close_for_gemm
@@ -81,3 +82,46 @@ def test_gemm_cuda_rejects_mismatched_dtype(device: torch.device) -> None:
     b = torch.randn(8, 8, device=device, dtype=torch.float16)
     with pytest.raises((ValueError, RuntimeError)):
         gemm_cuda(a, b)
+
+
+_ACTIVATIONS = {
+    "relu": F.relu,
+    "silu": F.silu,
+}
+
+
+@pytest.mark.cuda
+@pytest.mark.parametrize("activation", ["relu", "silu"])
+@pytest.mark.parametrize(
+    "shape",
+    [
+        (32, 64, 32),      # aligned -> tensor-op path (fp16/bf16)
+        (17, 33, 23),      # unaligned K/N -> SIMT fallback
+        (128, 256, 128),   # one full block tile
+        (130, 64, 130),    # partial trailing blocks
+    ],
+    ids=str,
+)
+def test_gemm_cutlass_fused_act_matches_ref(
+    activation: str, shape: tuple[int, int, int], dtype: torch.dtype, device: torch.device
+) -> None:
+    from aot_kernel import gemm_cutlass_fused_act
+
+    M, K, N = shape
+    torch.manual_seed(0)
+    a = torch.randn(M, K, dtype=dtype, device=device)
+    b = torch.randn(K, N, dtype=dtype, device=device)
+    got = gemm_cutlass_fused_act(a, b, activation)
+    expected = _ACTIVATIONS[activation](gemm_ref(a, b))
+    assert_close_for_gemm(got, expected, dtype)
+
+
+@pytest.mark.cuda
+@pytest.mark.parametrize("activation", ["gelu", None])
+def test_gemm_cutlass_fused_act_rejects_bad_activation(activation, device: torch.device) -> None:
+    from aot_kernel import gemm_cutlass_fused_act
+
+    a = torch.randn(8, 16, device=device, dtype=torch.float16)
+    b = torch.randn(16, 8, device=device, dtype=torch.float16)
+    with pytest.raises(ValueError):
+        gemm_cutlass_fused_act(a, b, activation)

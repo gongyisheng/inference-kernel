@@ -60,3 +60,21 @@ def gemm_cutlass(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     out = torch.empty((a.size(0), b.size(1)), device=device, dtype=dtype)
     torch.ops.aot_kernel.gemm_cutlass(out, a, b)
     return out
+
+
+_FUSED_ACTIVATION_CODES = {"relu": 1, "silu": 2}
+
+
+def gemm_cutlass_fused_act(
+    a: torch.Tensor, b: torch.Tensor, activation: str
+) -> torch.Tensor:
+    """CUTLASS GEMM with a fused activation epilogue: out = activation(a @ b).
+    activation is 'relu' or 'silu'. Same dtype/path rules as gemm_cutlass."""
+    device, dtype = _validate(a, b)
+    if dtype not in (torch.float16, torch.bfloat16, torch.float32):
+        raise ValueError(f"gemm_cutlass_fused_act: unsupported dtype {dtype}")
+    if activation not in _FUSED_ACTIVATION_CODES:
+        raise ValueError(f"gemm_cutlass_fused_act: unknown activation {activation!r}")
+    out = torch.empty((a.size(0), b.size(1)), device=device, dtype=dtype)
+    torch.ops.aot_kernel.gemm_cutlass_fused_act(out, a, b, _FUSED_ACTIVATION_CODES[activation])
+    return out
